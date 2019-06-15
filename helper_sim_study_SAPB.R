@@ -243,8 +243,27 @@ get_boot_CIs = function(boot.res, type, n.ests) {
 
 ############################# FN: GENERATE CLUSTERED META-ANALYSIS DATA #############################
 
+
 # p: row of parameters dataframe
-sim_data = function(p) {
+# unlike first version of sim_data, this allows non-normal true effects and 
+#  SEs correlated with true effects
+# so takes two new parameters: 
+# p$true.dist: "norm" or "expo"
+# p$SE.corr: TRUE or FALSE
+
+sim_data2 = function(p) {
+  
+  # # TEST ONLY
+  # p = data.frame( k = 500,
+  #                 per.cluster = 1,
+  #                 mu = .5,
+  #                 V = 1,
+  #                 V.gam = 0,
+  #                 sei.min = 1,
+  #                 sei.max = 1.5,
+  #                 eta = 1,
+  #                 true.dist = "exp",
+  #                 SE.corr = TRUE )
   
   N = p$k * p$per.cluster
   
@@ -253,25 +272,87 @@ sim_data = function(p) {
   gam1i = rep( gam1, each = p$per.cluster )
   
   # generate individual-study random intercepts
-  gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
+  if ( p$true.dist == "norm" ) gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
+    
+    if ( p$true.dist == "exp" ) {
+      gam2i = rexp( n = p$k, rate = 1 )
+      # shift to have mean of 0
+      gam2i = gam2i - mean(gam2i)
+    }
+  
+  
+  # individual study SEs
+  sei = runif( n = N, min = p$sei.min, max = p$sei.max )
   
   # individual study means
-  mui = p$mu + gam1i + gam2i
-  sei = runif( n = N, min = p$sei.min, max = p$sei.max )
+  if ( p$SE.corr == TRUE ) {
+    beta = 6
+    mui = p$mu + beta * sei + gam1i + gam2i
+    
+    # recenter them to have desired mean of p$mu
+    # because E[sei}]
+    mui = mui - beta * mean(sei)
+    
+    cor(sei, mui)
+  } else {
+    mui = p$mu + gam1i + gam2i
+  }
+  
+  # individual study point estimates
   yi = rnorm( n = N, mean = mui, sd = sei )
   
+
   d = data.frame( cluster = rep(1:p$k, each = p$per.cluster),
                   Study.name = 1:N,
                   yi = yi,
                   sei = sei,
                   vi = sei^2,
-                  pval = 2 * ( 1 - pnorm( abs(yi) / sei ) ) )
+                  pval = 2 * ( 1 - pnorm( abs(yi) / sei ) ),
+                  SE.corr.emp = cor(sei, mui) )  # empirical correlation
   
   # 1-tailed publication bias
   signif = d$pval < 0.05 & d$yi > 0
   publish = rep( 1, nrow(d) )
   publish[ signif == FALSE ] = rbinom( n = sum(signif == FALSE), size = 1, prob = 1/p$eta )
   
+  d$weight = 1
+  d$weight[ signif == 0 ] = p$eta
+  d = d[ publish == 1, ]
+  
+  return(d)
+}
+
+
+
+# # p: row of parameters dataframe
+sim_data = function(p) {
+
+  N = p$k * p$per.cluster
+
+  # generate cluster random intercepts
+  gam1 = rnorm( n = p$k, mean = 0, sd = sqrt( p$V.gam ) )
+  gam1i = rep( gam1, each = p$per.cluster )
+
+  # generate individual-study random intercepts
+  gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
+
+  # individual study means
+  mui = p$mu + gam1i + gam2i
+  sei = runif( n = N, min = p$sei.min, max = p$sei.max )
+  yi = rnorm( n = N, mean = mui, sd = sei )
+
+  d = data.frame( cluster = rep(1:p$k, each = p$per.cluster),
+                  Study.name = 1:N,
+                  yi = yi,
+                  sei = sei,
+                  vi = sei^2,
+                  pval = 2 * ( 1 - pnorm( abs(yi) / sei ) ) )
+
+  # 1-tailed publication bias
+  signif = d$pval < 0.05 & d$yi > 0
+  publish = rep( 1, nrow(d) )
+  publish[ signif == FALSE ] = rbinom( n = sum(signif == FALSE), size = 1, prob = 1/p$eta )
+
   d$weight = 1
   d$weight[ signif == 0 ] = p$eta
   d = d[ publish == 1, ]
@@ -288,7 +369,7 @@ sim_data = function(p) {
 #                           sei.min = 0.01,
 #                           sei.max = 0.01,
 #                           eta = 1 ) )
-# 
+#
 # # check out the clusters
 # # randomly choose 5 of them for visibility
 # library(ggplot2)
@@ -660,6 +741,7 @@ my_boot = function (data, statistic, R, sim = "ordinary", stype = c("i",
   
   # without this, boot.CI gets confused about number of replicates
   R = RR
+  browser()
   # ~~~~~ end of MM additions
   
   

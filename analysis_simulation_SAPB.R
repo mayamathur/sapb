@@ -1,4 +1,9 @@
 
+# To do: 
+# ~~~ save the miraculous bquote solution
+
+# put eta subscript on y-axes of plots
+
 # rm(list=ls())
 
 ################################### HELPER FN ###################################
@@ -91,8 +96,8 @@ plot_group = function(
 
 ################################### READ IN DATA ################################### 
 
-root.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results/*2019-1-6 in manuscript"
-setwd(root.dir)
+library(here)
+setwd(here("Code/Results"))
 
 # set up a dataframe for use with Overleaf
 sim.res = list()
@@ -138,7 +143,9 @@ sim.res["min.sim.reps"] = min(as.numeric(table(d$scen.name) ))
 ##### Number of Published Studies #####
 # number of observed studies should decline with larger eta
 ( n.studies = d %>% group_by(k, V, V.gam, eta, mu) %>% summarise( k.obs = mean(k.obs),
-                                         n.nonsig = median(n.nonsig) ) )
+                                         n.nonsig = median(n.nonsig),
+                                         SE.corr = median(SE.corr.emp) ) )
+setwd(here("Code/Results"))
 write.csv(n.studies, "n_studies.csv", row.names = FALSE)
 
 ##### Max Runtime by Scenario #####
@@ -155,7 +162,7 @@ write.csv(prop.missing, "prop_missing.csv", row.names = FALSE)
 
 ################################### AGGREGATE AND RECODE CERTAIN BRATTY VARIABLES ################################### 
 
-( analysis.vars = names(d)[ 19:35 ] )
+( analysis.vars = names(d)[ 19:38 ] )
 ( grouping.vars = names(d)[ ! names(d) %in% c( "X1", "X", analysis.vars ) ] )  # these are the scenario variables
 
 # cast analysis variables as numeric
@@ -198,7 +205,7 @@ levels(agg$k.pretty)
 agg$k.pretty = factor( agg$k.pretty, levels = c("100 latent studies",
                                                 "400 latent studies",
                                                 "200 latent studies",
-                                                "1000 latent studies") )
+                                                "1500 latent studies") )
 levels(agg$k.pretty)
 
 agg$mu.pretty = paste( "mu = ", agg$mu, sep="")
@@ -207,10 +214,7 @@ agg$orig.pretty = rep(NA, nrow(agg))
 agg$orig.pretty[ agg$orig.meta.model == "fixed" ] = "Fixed-effects"
 agg$orig.pretty[ agg$orig.meta.model == "wtd.score" ] = "Wtd. score"
 agg$orig.pretty[ agg$orig.meta.model == "robumeta" ] = "Robust (score)"
-agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
-                   agg$V.gam == 0 ] = "Robust independent"
-agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
-                   agg$V.gam > 0 ] = "Robust clustered"
+agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" ] = "Robust"
 
 
 agg = droplevels(agg)
@@ -222,7 +226,7 @@ agg2 = agg[ agg$orig.meta.model %in% c("fixed", "robumeta.lazy"), ]
 table(agg2$orig.meta.model, agg2$V.gam)
 agg2 = droplevels(agg2)
 
-colors = c("red", "black", "orange", "green")
+colors = c("red", "black", "blue", "orange")
 
 
 ##### Coverage #####
@@ -284,13 +288,13 @@ colors = c("red", "black", "orange", "green")
                                  max(agg2$eta)), 
                       breaks = unique(agg2$eta) ) +
   xlab( bquote(eta) ) +
-  ylab( bquote( "Median " ~ hat(mu[eta]) ) ) 
-
-
-ggsave( "muhat_main.pdf", 
-        width = 8,
-        height = 11 )
+  ylab( bquote( "Median " ~ hat(mu) ) ) 
   
+# # WTF????
+# agg2 %>% filter( eta == 1 &
+#                   mu == 0.2 & 
+#                   k == 20 & 
+#                   orig.meta.model == "robumeta.lazy")
 
 
 ##### CI Width #####
@@ -316,10 +320,6 @@ ggsave( "muhat_main.pdf",
   xlab( bquote(eta) ) +
   ylab( "Median CI width" ) 
 
-
-ggsave( "width_main.pdf", 
-        width = 8,
-        height = 11 )
 
 # among scenarios with at least 10 nonsigs
 summary( agg$MuCIWidth[ agg$n.nonsig >= 10 ] )
@@ -355,11 +355,8 @@ sim.res["hi.width.small"] = summary( agg$MuCIWidth[ agg$n.nonsig < 10 ] )["3rd Q
                                  max(agg2$eta)), 
                       breaks = unique(agg2$eta) ) +
   xlab( bquote(eta) ) +
-  ylab( "Median no. published nonaffirmative studies" ) 
+  ylab( "Median no. published nonpositive studies" ) 
 
-ggsave( "nnonsig_main.pdf", 
-        width = 8,
-        height = 11 )
 
 
 ################################### PLOTS FOR APPENDIX ################################### 

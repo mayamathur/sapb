@@ -1,59 +1,59 @@
 
 
-######### FOR CLUSTER USE #########
-
-# because Sherlock 2.0 restores previous workspace
-rm( list = ls() )
-
-# load command line arguments
-args = commandArgs(trailingOnly = TRUE)
-jobname = args[1]
-scen = args[2]  # this will be a letter
-
-# get scen parameters created by genSbatch
-setwd("/home/groups/manishad/SAPB")
-scen.params = read.csv( "scen_params.csv" )
-p = scen.params[ scen.params$scen.name == scen, ]
-
-print(p)
-
-
-# simulation reps to run within this job
-# this need to match n.reps.in.doParallel in the genSbatch script
-sim.reps = 200
-
-
-# EDITED FOR C++ ISSUE WITH PACKAGE INSTALLATION
-library(crayon, lib.loc = "/home/groups/manishad/Rpackages/") # for dplyr
-library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
-library(foreach, lib.loc = "/home/groups/manishad/Rpackages/")
-library(doParallel, lib.loc = "/home/groups/manishad/Rpackages/")
-library(boot, lib.loc = "/home/groups/manishad/Rpackages/")
-library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
-library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
-library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-library(fansi, lib.loc = "/home/groups/manishad/Rpackages/")  # for dplyr
-library(utf8, lib.loc = "/home/groups/manishad/Rpackages/")  # for dplyr
-library(cli, lib.loc = "/home/groups/manishad/Rpackages/")  # for dplyr
-library(nleqslv, lib.loc = "/home/groups/manishad/Rpackages/")
-
-
-# for use in ml load R
-# install.packages( c("doParallel", "foreach", "mvtnorm", "StepwiseTest", "matrixcalc"), lib = "/home/groups/manishad/Rpackages/" )
-
-source("helper_sim_study_SAPB.R")
-source("weightfunct from package.R")
-
-# set the number of cores
-registerDoParallel(cores=16)
-######### END OF CLUSTER PART #########
-
-
-# ######### FOR LOCAL USE #########
+# ######### FOR CLUSTER USE #########
 # 
-# rm(list=ls())
+# # because Sherlock 2.0 restores previous workspace
+# rm( list = ls() )
 # 
+# # load command line arguments
+# args = commandArgs(trailingOnly = TRUE)
+# jobname = args[1]
+# scen = args[2]  # this will be a letter
+# 
+# # get scen parameters created by genSbatch
+# setwd("/home/groups/manishad/SAPB")
+# scen.params = read.csv( "scen_params.csv" )
+# p = scen.params[ scen.params$scen.name == scen, ]
+# 
+# print(p)
+# 
+# 
+# # simulation reps to run within this job
+# # this need to match n.reps.in.doParallel in the genSbatch script
+# sim.reps = 200
+# 
+# 
+# # EDITED FOR C++ ISSUE WITH PACKAGE INSTALLATION
+# library(crayon, lib.loc = "/home/groups/manishad/Rpackages/") # for dplyr
+# library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(foreach, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(doParallel, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(boot, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(fansi, lib.loc = "/home/groups/manishad/Rpackages/")  # for dplyr
+# library(utf8, lib.loc = "/home/groups/manishad/Rpackages/")  # for dplyr
+# library(cli, lib.loc = "/home/groups/manishad/Rpackages/")  # for dplyr
+# library(nleqslv, lib.loc = "/home/groups/manishad/Rpackages/")
+# 
+# 
+# # for use in ml load R
+# # install.packages( c("doParallel", "foreach", "mvtnorm", "StepwiseTest", "matrixcalc"), lib = "/home/groups/manishad/Rpackages/" )
+# 
+# source("helper_sim_study_SAPB.R")
+# source("weightfunct from package.R")
+# 
+# # set the number of cores
+# registerDoParallel(cores=16)
+# ######### END OF CLUSTER PART #########
+
+
+######### FOR LOCAL USE #########
+
+rm(list=ls())
+
 # # REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
 # # note: total studies is k * per.cluster
 # k = c(20, 40, 80, 300)  # number of clusters prior to selection
@@ -69,95 +69,120 @@ registerDoParallel(cores=16)
 # boot.reps = c(0)
 # bt.meta.model = c("rma.uni")
 # bt.type = c("wtd.vanilla")
-# orig.meta.model = rev( c("fixed", "wtd.score", "robumeta", "robumeta.lazy") )
-# 
-# 
-# # matrix of scenario parameters
-# scen.params = expand.grid(k,
-#                           per.cluster,
-#                           mu,
-#                           V,
-#                           V.gam,
-#                           sei.min,
-#                           sei.max,
-#                           eta,
-#                           q,
-#                           boot.reps,
-#                           orig.meta.model,
-#                           bt.meta.model,
-#                           bt.type )
-# 
-# names(scen.params) = c("k",
-#                        "per.cluster",
-#                        "mu",
-#                        "V",
-#                        "V.gam",
-#                        "sei.min",
-#                        "sei.max",
-#                        "eta",
-#                        "q",
-#                        "boot.reps",
-#                        "orig.meta.model",
-#                        "bt.meta.model",
-#                        "bt.type" )
-# 
-# 
-# # remove scenarios with V = 0 but V.gam > 0
-# scen.params = scen.params[ !(scen.params$V == 0 & scen.params$V.gam > 0), ]
-# 
-# # remove scenarios with nonsense combinations of methods and parameters
-# stupid = rep( FALSE, nrow(scen.params) )
-# stupid[ scen.params$V > 0 & scen.params$orig.meta.model == "fixed" ] = TRUE
-# scen.params = scen.params[ stupid == FALSE, ]
-# 
-# # meta-analysis choices: fixed, wtd.score, robumeta, robumeta.lazy
-# # (last one uses a lazier initial guess for t2 to avoid calling wtd.score method)
-# # # when V.gam is 0, always use Vevea
-# # scen.params$orig.meta.model = c("robumeta")
-# # scen.params$orig.meta.model[ scen.params$V.gam == 0 & 
-# #                                scen.params$V > 0 ] = "wtd.score"
-# # scen.params$orig.meta.model[ scen.params$V == 0 ] = "fixed"
-# 
-# # compute true P
-# scen.params$trueP = 1 - pnorm( ( scen.params$q - scen.params$mu ) / sqrt(scen.params$V) )
-# 
-# 
-# # scenario names
-# start.at = 1
-# scen.params$scen.name = paste( "scen.",
-#                                start.at : ( start.at + nrow(scen.params) - 1 ),
-#                                sep="" )
-# ( n.scen = length(scen.params[,1]) )
-# 
-# 
-# 
-# # # first make parameters csv file in genSbatch
-# # library(here)
-# # setwd( here:::here("Code/Simulation study") )
-# # ( scen.params = read.csv("scen_params.csv") )
-# 
-# # WAS FOR LOCAL USE
-# library(foreach)
-# library(doParallel)
-# library(dplyr)
-# library(boot)
-# library(robumeta)
-# library(metafor)
-# library(nleqslv)
-# 
-# sim.reps = 5
-# 
+# orig.meta.model = rev( c("robumeta.lazy") )
+# true.dist = "exp"
+# SE.corr = TRUE
+
+# REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
+# note: total studies is k * per.cluster
+k = c(300)  # number of clusters prior to selection
+per.cluster = c(5)  # studies per cluster
+mu = c(0.6)  # RE distribution mean
+V = c(0)  # RE heterogeneity
+V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
+sei.min = 1  # runif lower bound for study SEs
+sei.max = c(1.5)  # runif upper bound for study SEs
+eta = c(1)  # selection prob
+q = c(2)
+#q = c(2.2, 1.2)
+boot.reps = c(0)
+bt.meta.model = c("rma.uni")
+bt.type = c("wtd.vanilla")
+orig.meta.model = rev( c("robumeta.lazy") )
+true.dist = "exp"
+SE.corr = TRUE
+
+
+# matrix of scenario parameters
+scen.params = expand.grid(k,
+                          per.cluster,
+                          mu,
+                          V,
+                          V.gam,
+                          sei.min,
+                          sei.max,
+                          eta,
+                          q,
+                          boot.reps,
+                          orig.meta.model,
+                          bt.meta.model,
+                          bt.type,
+                          true.dist,
+                          SE.corr )
+
+names(scen.params) = c("k",
+                       "per.cluster",
+                       "mu",
+                       "V",
+                       "V.gam",
+                       "sei.min",
+                       "sei.max",
+                       "eta",
+                       "q",
+                       "boot.reps",
+                       "orig.meta.model",
+                       "bt.meta.model",
+                       "bt.type",
+                       "true.dist",
+                       "SE.corr" )
+
+
+# remove scenarios with V = 0 but V.gam > 0
+scen.params = scen.params[ !(scen.params$V == 0 & scen.params$V.gam > 0), ]
+
+# remove scenarios with nonsense combinations of methods and parameters
+stupid = rep( FALSE, nrow(scen.params) )
+stupid[ scen.params$V > 0 & scen.params$orig.meta.model == "fixed" ] = TRUE
+scen.params = scen.params[ stupid == FALSE, ]
+
+# meta-analysis choices: fixed, wtd.score, robumeta, robumeta.lazy
+# (last one uses a lazier initial guess for t2 to avoid calling wtd.score method)
+# # when V.gam is 0, always use Vevea
+# scen.params$orig.meta.model = c("robumeta")
+# scen.params$orig.meta.model[ scen.params$V.gam == 0 &
+#                                scen.params$V > 0 ] = "wtd.score"
+# scen.params$orig.meta.model[ scen.params$V == 0 ] = "fixed"
+
+# compute true P
+scen.params$trueP = 1 - pnorm( ( scen.params$q - scen.params$mu ) / sqrt(scen.params$V) )
+
+
+# scenario names
+start.at = 1
+scen.params$scen.name = paste( "scen.",
+                               start.at : ( start.at + nrow(scen.params) - 1 ),
+                               sep="" )
+( n.scen = length(scen.params[,1]) )
+
+
+
+# # first make parameters csv file in genSbatch
 # library(here)
-# setwd(here:::here("Code"))
-# source("helper_sim_study_SAPB.R")
-# source("weightfunct from package.R")
-# 
-# # set the number of cores
-# registerDoParallel(cores=8)
-# 
-# scen = "scen.524"
-# 
-# ######### END OF LOCAL PART #########
+# setwd( here:::here("Code/Simulation study") )
+# ( scen.params = read.csv("scen_params.csv") )
+
+# WAS FOR LOCAL USE
+library(foreach)
+library(doParallel)
+library(dplyr)
+library(boot)
+library(robumeta)
+library(metafor)
+library(nleqslv)
+
+sim.reps = 50
+
+library(here)
+setwd(here:::here("Code"))
+source("helper_sim_study_SAPB.R")
+source("weightfunct from package.R")
+
+# set the number of cores
+registerDoParallel(cores=8)
+
+scen = "scen.1"
+
+######### END OF LOCAL PART #########
 
 
 ########################### THIS SCRIPT COMPLETELY RUNS 1 SIMULATION  ###########################
@@ -190,8 +215,9 @@ rep.time = system.time({
     # make sure there's at least 1 nonsignificant study
     n.nonsig = 0
     while( n.nonsig == 0 ) {
-      d = sim_data(p)
+      d = sim_data2(p)
       n.nonsig = sum(d$pval > 0.05 | d$yi < 0)
+      SE.corr.emp = d$SE.corr.emp[1]
     }
 
     # dim(d)
@@ -393,7 +419,6 @@ rep.time = system.time({
     }
     
     # my version of Vevea-Woods model
-    # BOOKMARK :)
     if ( p$orig.meta.model == "wtd.score" ) {
       
       
@@ -599,15 +624,18 @@ rep.time = system.time({
                            
                            # FE mean in NS studies
                            nonsig.fe.mean = rep( nonsig.fe.mean,
-                                             2 )
+                                             2 ),
+                           
+                           # empirical correlation between SE and true effects
+                           SE.corr.emp = rep( d$SE.corr.emp[1], 
+                                              2)
     )
     
     # add in scenario parameters
     rows$scen.name = scen
     rows = as.data.frame( merge(scen.params, rows) )
     rows
-    
-  
+
     }  ### end foreach loop
   
 } )[3]  # end timer
@@ -628,32 +656,34 @@ rs$MuCIWidth = rs$MuHi - rs$MuLo
 
 
 
-# # LOCAL ONLY
-# my.vars = c("MuEst", "MuCover",
-#             "MuLo", "MuHi",
-#             "MuCIWidth",
-#             "T2Est", "T2Cover",
-#             "T2Lo", "T2Hi",
-#             "PEst", "PCover",
-#             "k.obs", "n.nonsig" )
-# 
-# # mean performance among non-NA reps
-# options(scipen=999)
-# agg = rs %>% group_by(Method) %>% summarise_at( vars(my.vars), mean, na.rm = TRUE )
-# View(agg)
-# 
-# rs %>% group_by(Method) %>% summarise( median(MuEst) )
-# round( summary(rs$MuEst, na.rm = TRUE), 3 )
-# 
-# hist(rs$MuEst[ !is.na(rs$MuEst)])
-# 
-# # # how often did bootstrap fail?
-# # prop.miss = rs %>% group_by(Method) %>% summarise( PropMiss = mean( is.na(MuCover) ) )
-# # agg$PropMiss = prop.miss$PropMiss
-# 
-# 
-# agg$scen.name = scen
-# ( agg = merge( scen.params, agg ) )
+# LOCAL ONLY
+
+
+my.vars = c("MuEst", "MuCover",
+            "MuLo", "MuHi",
+            "MuCIWidth",
+            "T2Est", "T2Cover",
+            "T2Lo", "T2Hi",
+            "PEst", "PCover",
+            "k.obs", "n.nonsig", "SE.corr.emp" )
+
+# mean performance among non-NA reps
+options(scipen=999)
+agg = rs %>% group_by(Method) %>% summarise_at( vars(my.vars), mean, na.rm = TRUE )
+View(agg)
+
+rs %>% group_by(Method) %>% summarise( median(MuEst) )
+round( summary(rs$MuEst, na.rm = TRUE), 3 )
+
+hist(rs$MuEst[ !is.na(rs$MuEst)])
+
+# # how often did bootstrap fail?
+# prop.miss = rs %>% group_by(Method) %>% summarise( PropMiss = mean( is.na(MuCover) ) )
+# agg$PropMiss = prop.miss$PropMiss
+
+
+agg$scen.name = scen
+( agg = merge( scen.params, agg ) )
 
 
 ########################### WRITE LONG RESULTS  ###########################

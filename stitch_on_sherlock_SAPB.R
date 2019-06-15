@@ -48,15 +48,8 @@ library(dplyr)
 #   summarise_at( vars(my.vars), mean )
 
 # WHY ARE THERE WEIRD ROWS??
-my.letters = c(letters,
-               paste(letters,letters,sep=""),
-               paste(letters,letters,letters,sep=""),
-               paste(letters,letters,letters,letters,sep=""),
-               paste(letters,letters,letters,letters,letters,sep=""),
-               paste(letters,letters,letters,letters,letters,letters,sep=""),
-               paste(letters,letters,letters,letters,letters,letters,letters,sep="")
-)
-bad = which( !s$scen.name %in% my.letters )
+valid.names = paste("scen", 1:9999, sep=".")
+bad = which( !s$scen.name %in% valid.names )
 length(bad)
 #View( d[bad,] )
 if( length(bad) > 0 ) s = s[ -bad, ]
@@ -66,16 +59,20 @@ table(s$scen.name)
 
 # sanity check -- number of observed studies should decline with larger eta
 s %>% group_by(k, eta) %>% summarise( k.obs = mean(k.obs),
-                                         n.nonsig = mean(n.nonsig) )
+                                         n.nonsig = mean(n.nonsig),
+                                      SE.corr = mean(SE.corr.emp) )
 
 
 
 my.vars = c("MuEst", "MuCover", "MuLo", "MuHi",
             "T2Est", "T2Cover", "T2Lo", "T2Hi",
             "PEst", "PCover", "PLo", "PHi",
-            "k.obs", "n.nonsig")
+            "k.obs", "n.nonsig", "SE.corr.emp")
 
 # mean performance among non-NA reps
+
+s$MuCover = as.numeric(s$MuCover)
+
 ( agg = s %>% group_by(scen.name, Method, V, k ) %>%
     summarise_at( vars(my.vars), mean, na.rm = TRUE ) )
 

@@ -20,22 +20,22 @@ rm /home/groups/manishad/SAPB/results/*
 path = "/home/groups/manishad/SAPB"
 setwd(path)
 
-# REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
-# note: total studies is k * per.cluster
-k = c(20, 40, 80, 200)  # number of clusters prior to selection
+k = c(20, 40, 80, 300)  # number of clusters prior to selection
 per.cluster = c(5)  # studies per cluster
-mu = c(0.2, .8)  # RE distribution mean
-V = c(0, 1)  # RE heterogeneity
+mu = c(0.6, .8)  # RE distribution mean
+V = c(1, 0)  # RE heterogeneity
 V.gam = c(0, 0.5)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
 sei.min = 1  # runif lower bound for study SEs
 sei.max = c(1.5)  # runif upper bound for study SEs
 eta = c(100, 50, 20, 10, 1)  # selection prob
-q = c(1)  # not using Phat anymore, so doesn't matter
+q = c(2, 1)
 #q = c(2.2, 1.2)
 boot.reps = c(0)
 bt.meta.model = c("rma.uni")
 bt.type = c("wtd.vanilla")
-orig.meta.model = c("fixed", "wtd.score", "robumeta", "robumeta.lazy")
+orig.meta.model = rev( c("robumeta.lazy") )
+true.dist = "exp"
+SE.corr = TRUE
 
 
 # matrix of scenario parameters
@@ -51,7 +51,9 @@ scen.params = expand.grid(k,
                           boot.reps,
                           orig.meta.model,
                           bt.meta.model,
-                          bt.type )
+                          bt.type,
+                          true.dist,
+                          SE.corr )
 
 names(scen.params) = c("k",
                        "per.cluster",
@@ -65,7 +67,9 @@ names(scen.params) = c("k",
                        "boot.reps",
                        "orig.meta.model",
                        "bt.meta.model",
-                       "bt.type" )
+                       "bt.type",
+                       "true.dist", 
+                       "SE.corr" )
 
 
 # remove scenarios with V = 0 but V.gam > 0
@@ -141,14 +145,14 @@ sbatch_params <- data.frame(jobname,
                             stringsAsFactors = F,
                             server_sbatch_path = NA)
 
-#generateSbatch(sbatch_params, runfile_path)
+generateSbatch(sbatch_params, runfile_path)
 
 n.files
 
-# 1400 total
+# 800 total
 path = "/home/groups/manishad/SAPB"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1400) {
+for (i in 2:800) {
   system( paste("sbatch -p owners /home/groups/manishad/SAPB/sbatch_files/", i, ".sbatch", sep="") )
   
   # max hourly submissions seems to be 300, which is 12 seconds/job
@@ -162,7 +166,8 @@ for (i in 1:1400) {
 # ######## If Running Only Some Jobs To Fill Gaps ########
 # 
 # run in Sherlock ml load R
-path = "/home/groups/manishad/SAPB"
+path = "/home/groups/manishad/S
+APB"
 setwd(path)
 source("helper_sim_study_SAPB.R")
 
