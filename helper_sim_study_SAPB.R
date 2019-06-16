@@ -268,14 +268,17 @@ sim_data2 = function(p) {
   N = p$k * p$per.cluster
   
   # generate cluster random intercepts
+  # these are normal even when true effect dist is exponential
   gam1 = rnorm( n = p$k, mean = 0, sd = sqrt( p$V.gam ) )
   gam1i = rep( gam1, each = p$per.cluster )
   
   # generate individual-study random intercepts
+  # these are either normal or exponential
   if ( p$true.dist == "norm" ) gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
     
     if ( p$true.dist == "exp" ) {
-      gam2i = rexp( n = p$k, rate = 1 )
+      # NOTE THAT THE MEAN IS EQUAL TO p$V - p$V.gam, NOT MU!!
+      gam2i = rexp( n = p$k, rate = p$V - p$V.gam )
       # shift to have mean of 0
       gam2i = gam2i - mean(gam2i)
     }

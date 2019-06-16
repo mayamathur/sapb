@@ -22,8 +22,8 @@ setwd(path)
 
 k = c(20, 40, 80, 300)  # number of clusters prior to selection
 per.cluster = c(5)  # studies per cluster
-mu = c(0.6, .8)  # RE distribution mean
-V = c(1, 0)  # RE heterogeneity
+mu = c(-99)  # RE distribution mean (will be ignored and overwritten since using exponential)
+V = c(2, 1, 0)  # RE heterogeneity
 V.gam = c(0, 0.5)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
 sei.min = 1  # runif lower bound for study SEs
 sei.max = c(1.5)  # runif upper bound for study SEs
@@ -35,7 +35,7 @@ bt.meta.model = c("rma.uni")
 bt.type = c("wtd.vanilla")
 orig.meta.model = rev( c("robumeta.lazy") )
 true.dist = "exp"
-SE.corr = TRUE
+SE.corr = FALSE
 
 
 # matrix of scenario parameters
@@ -83,6 +83,11 @@ scen.params = scen.params[ stupid == FALSE, ]
 
 # check it
 table(scen.params$V, scen.params$V.gam, scen.params$orig.meta.model)
+
+# if true.dist is exponential, then mu is predetermined by the variance
+# this will not be used but is meant to record what the truth is
+scen.params$mu[ scen.params$true.dist == "exp" ] = scen.params$V[ scen.params$true.dist == "exp" ] - scen.params$V.gam[ scen.params$true.dist == "exp" ]
+
 
 # meta-analysis choices: fixed, wtd.score, robumeta, robumeta.lazy
 # (last one uses a lazier initial guess for t2 to avoid calling wtd.score method)
@@ -152,7 +157,7 @@ n.files
 # 800 total
 path = "/home/groups/manishad/SAPB"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:800) {
+for (i in 3:800) {
   system( paste("sbatch -p owners /home/groups/manishad/SAPB/sbatch_files/", i, ".sbatch", sep="") )
   
   # max hourly submissions seems to be 300, which is 12 seconds/job
