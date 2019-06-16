@@ -30,7 +30,7 @@ nano /home/groups/manishad/SAPB/results/overall_stitched/sti*
 ####################### CODE -> SHERLOCK ####################### 
 
 # push all the individual files
-scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/Sensitivity\ analysis\ for\ publication\ bias\ \(SAPB\)/Simulation\ study/Code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPB
+scp -r /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/Sensitivity\ analysis\ for\ publication\ bias\ \(SAPB\)/Linked\ to\ OSF\ \(SAPB\)/Simulation\ study/Code* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPB
 
 # Sherlock -> Desktop
 scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPB/results/overall_stitched/stitched.csv ~/Desktop

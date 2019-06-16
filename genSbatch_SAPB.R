@@ -28,7 +28,7 @@ V.gam = c(0, 0.5)  # variance of random intercepts (can't be > V because that's 
 sei.min = 1  # runif lower bound for study SEs
 sei.max = c(1.5)  # runif upper bound for study SEs
 eta = c(100, 50, 20, 10, 1)  # selection prob
-q = c(2, 1)
+q = c(1) # no longer relevant because not using Phat
 #q = c(2.2, 1.2)
 boot.reps = c(0)
 bt.meta.model = c("rma.uni")
@@ -136,7 +136,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "1:00:00",
+                            jobtime = "2:00:00",  # had used 1:00:00 for main results
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,

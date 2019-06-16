@@ -96,8 +96,8 @@ plot_group = function(
 
 ################################### READ IN DATA ################################### 
 
-library(here)
-setwd(here("Code/Results"))
+results.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results"
+setwd(results.dir)
 
 # set up a dataframe for use with Overleaf
 sim.res = list()
@@ -123,7 +123,9 @@ options(scipen=999)
 apply( d[,cant.be.na], 2,
        function(x)prop.table(table(is.na(x))))
 # for some reason the V.gam = 0.5 read in as "NA" :(
-d$V.gam[ is.na(d$V.gam) ] = 0.5
+#d$V.gam[ is.na(d$V.gam) ] = 0.5
+# remove very small proportion of missing data
+d = d[ complete.cases( d[ , cant.be.na ] ), ]
 
 d = d[ !is.na(d$scen.name), ]
 
@@ -145,7 +147,7 @@ sim.res["min.sim.reps"] = min(as.numeric(table(d$scen.name) ))
 ( n.studies = d %>% group_by(k, V, V.gam, eta, mu) %>% summarise( k.obs = mean(k.obs),
                                          n.nonsig = median(n.nonsig),
                                          SE.corr = median(SE.corr.emp) ) )
-setwd(here("Code/Results"))
+setwd(results.dir)
 write.csv(n.studies, "n_studies.csv", row.names = FALSE)
 
 ##### Max Runtime by Scenario #####
@@ -155,6 +157,7 @@ write.csv(max.runtimes, "max_runtimes.csv", row.names = FALSE)
 
 ##### Missing Data by Scenario #####
 # I think this should only happen for wtd.score when it fails to converge
+# since we already removed idiosyncratic missing data
 ( prop.missing = d %>% group_by(scen.name) %>%
     summarise( prop.missing = mean( is.na(MuCover) ) ) )
 write.csv(prop.missing, "prop_missing.csv", row.names = FALSE)
@@ -202,6 +205,7 @@ agg$k.pretty = as.factor( paste( agg$per.cluster * agg$k,
                                  " latent studies", sep="") )
 levels(agg$k.pretty)
 # for ggplot ordering
+# ~~~ IF YOU'VE CHANGED THE SCENARIOS, MAKE SURE NUMBERS HERE ARE STILL RIGHT
 agg$k.pretty = factor( agg$k.pretty, levels = c("100 latent studies",
                                                 "400 latent studies",
                                                 "200 latent studies",
@@ -281,8 +285,8 @@ colors = c("red", "black", "blue", "orange")
   
   guides(color=guide_legend(title="Model")) +
   
-  scale_y_continuous( limits = c(0,1),
-                      breaks = seq(0,1,.2)) +
+  scale_y_continuous( limits = c(0, 2.5),
+                      breaks = seq(0, 2.5, .25)) +
   
   scale_x_continuous( limits = c(min(agg2$eta),
                                  max(agg2$eta)), 
