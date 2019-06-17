@@ -272,15 +272,18 @@ sim_data2 = function(p) {
   gam1 = rnorm( n = p$k, mean = 0, sd = sqrt( p$V.gam ) )
   gam1i = rep( gam1, each = p$per.cluster )
   
-  # generate individual-study random intercepts
+  # generate individual-study random intrcepts
+  # these are called "zeta" in the paper
   # these are either normal or exponential
   if ( p$true.dist == "norm" ) gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
     
     if ( p$true.dist == "exp" ) {
-      # NOTE THAT THE MEAN IS EQUAL TO p$V - p$V.gam, NOT MU!!
-      gam2i = rexp( n = p$k, rate = p$V - p$V.gam )
+      true.effect.var = p$V - p$V.gam
+      # set var using properties of exponential
+      gam2i = rexp( n = p$k, rate = true.effect.var^(-1/2) )
       # shift to have mean of 0
-      gam2i = gam2i - mean(gam2i)
+      # use fact that var = mean^2 in exponential
+      gam2i = gam2i - true.effect.var^(1/2)
     }
   
   

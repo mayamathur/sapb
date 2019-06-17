@@ -214,11 +214,15 @@ levels(agg$k.pretty)
 
 agg$mu.pretty = paste( "mu = ", agg$mu, sep="")
 
+
 agg$orig.pretty = rep(NA, nrow(agg))
 agg$orig.pretty[ agg$orig.meta.model == "fixed" ] = "Fixed-effects"
 agg$orig.pretty[ agg$orig.meta.model == "wtd.score" ] = "Wtd. score"
 agg$orig.pretty[ agg$orig.meta.model == "robumeta" ] = "Robust (score)"
-agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" ] = "Robust"
+agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
+                   agg$V.gam == 0 ] = "Robust independent"
+agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
+                   agg$V.gam > 0 ] = "Robust clustered"
 
 
 agg = droplevels(agg)
@@ -285,8 +289,8 @@ colors = c("red", "black", "blue", "orange")
   
   guides(color=guide_legend(title="Model")) +
   
-  scale_y_continuous( limits = c(0, 2.5),
-                      breaks = seq(0, 2.5, .25)) +
+  scale_y_continuous( limits = c(0, 1),
+                      breaks = seq(0, 1, .2)) +
   
   scale_x_continuous( limits = c(min(agg2$eta),
                                  max(agg2$eta)), 
