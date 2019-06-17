@@ -268,12 +268,13 @@ sim_data2 = function(p) {
   N = p$k * p$per.cluster
   
   # generate cluster random intercepts
+  # called "zeta" in paper
   # these are normal even when true effect dist is exponential
   gam1 = rnorm( n = p$k, mean = 0, sd = sqrt( p$V.gam ) )
   gam1i = rep( gam1, each = p$per.cluster )
   
   # generate individual-study random intrcepts
-  # these are called "zeta" in the paper
+  # these are called "gamma" in the paper
   # these are either normal or exponential
   if ( p$true.dist == "norm" ) gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
     

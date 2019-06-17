@@ -1,10 +1,4 @@
 
-# To do: 
-# ~~~ save the miraculous bquote solution
-
-# put eta subscript on y-axes of plots
-
-# rm(list=ls())
 
 ################################### HELPER FN ###################################
 
@@ -117,13 +111,16 @@ if( length(bad.rows) > 0 ) d = d[ -bad.rows, ]
 # also remove bootstrap rows since not in use
 d = d[ d$Method == "Naive", ]
 
+# should always be "exp"
+table(d$true.dist)
+
+
 # other NA rows
 ( cant.be.na = names(d)[3:16] )
 options(scipen=999)
 apply( d[,cant.be.na], 2,
        function(x)prop.table(table(is.na(x))))
-# for some reason the V.gam = 0.5 read in as "NA" :(
-#d$V.gam[ is.na(d$V.gam) ] = 0.5
+
 # remove very small proportion of missing data
 d = d[ complete.cases( d[ , cant.be.na ] ), ]
 
@@ -135,7 +132,7 @@ d = droplevels(d)
 table(d$scen.name)
 
 # min successful reps per scenario
-summary( as.numeric(table(d$scen.name) ) )  # 695
+summary( as.numeric(table(d$scen.name) ) )  # 864
 sim.res["min.sim.reps"] = min(as.numeric(table(d$scen.name) ))
 
 
