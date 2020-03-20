@@ -63,7 +63,7 @@ get_score = function(x,
   # # partial derivative of LL wrt mu
   # F1 = sum( ( yi - x[1] ) / ( vi + x[2] ) )
   # 
-  # # partial derivative of LL wrt mu
+  # # partial derivative of LL wrt T2
   # num = ( yi - x[1] )^2 - ( vi + x[2] )
   # denom = 2 * ( vi + x[2] )^2
   # F2 = sum( num/denom )
@@ -73,7 +73,7 @@ get_score = function(x,
   F1.contribs = weights * ( yi - x[1] ) / ( vi + x[2] )
   F1 = sum( F1.contribs )
   
-  # partial derivative of LL wrt mu
+  # partial derivative of LL wrt T2
   num = ( yi - x[1] )^2 - ( vi + x[2] )
   denom = 2 * ( vi + x[2] )^2
   F2.contribs = weights * (num/denom)
@@ -91,7 +91,7 @@ Jac = function(x,
                weights ) {
   J <- matrix(0,nrow=2,ncol=2)
   
-  # unweighted version -- MATCHES METAFOR! 
+  # unweighted version -- MATCHES METAFOR! :)
   J[1,1] = -sum( weights / (vi + x[2]) )
   J[1,2] = -sum( weights * ( yi - x[1] ) / ( vi + x[2] )^2 )
   J[2,1] = J[1,2]
@@ -147,7 +147,6 @@ correct_est_re_score = function( yi,
                   vi = vi, 
                   weights = weights,
                   individ.terms = TRUE )
-  # ~~~ NOT SURE ABOUT THIS: 
   B0 = t(ki) %*% ki   
   var = solve(-J.emp) %*% B0 %*% solve(-J.emp)
   
@@ -250,8 +249,10 @@ get_boot_CIs = function(boot.res, type, n.ests) {
 # so takes two new parameters: 
 # p$true.dist: "norm" or "expo"
 # p$SE.corr: TRUE or FALSE
+# keep.all.studies: should we return all studies, including the unpublished ones?
 
-sim_data2 = function(p) {
+sim_data2 = function(p,
+                     keep.all.studies = FALSE) {
   
   # # TEST ONLY
   # p = data.frame( k = 500,
@@ -307,10 +308,11 @@ sim_data2 = function(p) {
   
   # individual study point estimates
   yi = rnorm( n = N, mean = mui, sd = sei )
-  
+
 
   d = data.frame( cluster = rep(1:p$k, each = p$per.cluster),
                   Study.name = 1:N,
+                  mui, 
                   yi = yi,
                   sei = sei,
                   vi = sei^2,
@@ -324,7 +326,9 @@ sim_data2 = function(p) {
   
   d$weight = 1
   d$weight[ signif == 0 ] = p$eta
-  d = d[ publish == 1, ]
+  
+  if ( keep.all.studies == FALSE ) d = d[ publish == 1, ]
+  if ( keep.all.studies == TRUE ) d$publish = publish  # just add the indicator
   
   return(d)
 }

@@ -1,4 +1,9 @@
 
+overleaf.dir = "~/Dropbox/Apps/Overleaf/SAPB manu and appendix/R_objects"
+results.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results"
+data.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results/*2019-1-6 in manuscript"
+
+
 
 ################################### HELPER FN ###################################
 
@@ -90,14 +95,13 @@ plot_group = function(
 
 ################################### READ IN DATA ################################### 
 
-results.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results"
-setwd(results.dir)
 
 # set up a dataframe for use with Overleaf
 sim.res = list()
 
 # read in stitched results (1 row per simulation iterate)
 library(tidyverse)
+setwd(data.dir)
 d = read_csv( "stitched.csv" )
 
 # remove idiosyncratic failed rows
@@ -204,16 +208,16 @@ levels(agg$k.pretty)
 # for ggplot ordering
 # ~~~ IF YOU'VE CHANGED THE SCENARIOS, MAKE SURE NUMBERS HERE ARE STILL RIGHT
 agg$k.pretty = factor( agg$k.pretty, levels = c("100 latent studies",
-                                                "400 latent studies",
                                                 "200 latent studies",
-                                                "1500 latent studies") )
+                                                "400 latent studies",
+                                                "1000 latent studies") )
 levels(agg$k.pretty)
 
 agg$mu.pretty = paste( "mu = ", agg$mu, sep="")
 
 
 agg$orig.pretty = rep(NA, nrow(agg))
-agg$orig.pretty[ agg$orig.meta.model == "fixed" ] = "Fixed-effects"
+agg$orig.pretty[ agg$orig.meta.model == "fixed" ] = "Common-effects"
 agg$orig.pretty[ agg$orig.meta.model == "wtd.score" ] = "Wtd. score"
 agg$orig.pretty[ agg$orig.meta.model == "robumeta" ] = "Robust (score)"
 agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
@@ -224,6 +228,13 @@ agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
 
 agg = droplevels(agg)
 
+
+# #### ~~~ SANITY CHECK
+# 
+# fake = d[ d$k == 20 & d$per.cluster == 5 & d$mu == 0.8 & d$eta == 5 & d$V == 1 & d$V.gam == 0,]
+
+#View( agg[ agg$k == 20 & agg$per.cluster == 5 & agg$mu == 0.8 & agg$eta == 10 & agg$V == 1 & agg$V.gam == 0,] )
+
 ################################### PLOTS FOR MAIN TEXT ################################### 
 
 # keep only recommended combinations
@@ -231,7 +242,7 @@ agg2 = agg[ agg$orig.meta.model %in% c("fixed", "robumeta.lazy"), ]
 table(agg2$orig.meta.model, agg2$V.gam)
 agg2 = droplevels(agg2)
 
-colors = c("red", "black", "blue", "orange")
+colors = c("orange", "red", "black", "blue")
 
 
 ##### Coverage #####
@@ -270,7 +281,7 @@ colors = c("red", "black", "blue", "orange")
 
 
 ##### Point Estimate #####
-  ggplot( agg2, aes_string( x="eta", y="MuEst", color="orig.pretty" ) ) +
+ggplot( agg2, aes_string( x="eta", y="MuEst", color="orig.pretty" ) ) +
   
   geom_hline(aes(yintercept=mu), lty = 2, color="red") +
   
@@ -295,15 +306,20 @@ colors = c("red", "black", "blue", "orange")
   xlab( bquote(eta) ) +
   ylab( bquote( "Median " ~ hat(mu) ) ) 
   
-# # WTF????
-# agg2 %>% filter( eta == 1 &
-#                   mu == 0.2 & 
-#                   k == 20 & 
-#                   orig.meta.model == "robumeta.lazy")
+setwd(overleaf.dir)
+ggsave( "muhat_main.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "muhat_main.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
 
 
 ##### CI Width #####
-  ggplot( agg2, aes_string( x="eta", y="MuCIWidth", color="orig.pretty" ) ) +
+ggplot( agg2, aes_string( x="eta", y="MuCIWidth", color="orig.pretty" ) ) +
   
   geom_line(lwd=1) +
   geom_point(size=2) +
@@ -325,6 +341,17 @@ colors = c("red", "black", "blue", "orange")
   xlab( bquote(eta) ) +
   ylab( "Median CI width" ) 
 
+setwd(overleaf.dir)
+ggsave( "width_main.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "width_main.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+
 
 # among scenarios with at least 10 nonsigs
 summary( agg$MuCIWidth[ agg$n.nonsig >= 10 ] )
@@ -342,7 +369,7 @@ sim.res["hi.width.small"] = summary( agg$MuCIWidth[ agg$n.nonsig < 10 ] )["3rd Q
 
 ##### Number of Nonsig Studies #####
 
-  ggplot( agg2, aes_string( x="eta", y="n.nonsig", color="orig.pretty" ) ) +
+ggplot( agg2, aes_string( x="eta", y="n.nonsig", color="orig.pretty" ) ) +
   
   geom_line(lwd=1) +
   geom_point(size=2) +
@@ -362,6 +389,16 @@ sim.res["hi.width.small"] = summary( agg$MuCIWidth[ agg$n.nonsig < 10 ] )["3rd Q
   xlab( bquote(eta) ) +
   ylab( "Median no. published nonpositive studies" ) 
 
+setwd(overleaf.dir)
+ggsave( "nnonsig_main.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "nnonsig_main.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
 
 
 ################################### PLOTS FOR APPENDIX ################################### 
@@ -385,10 +422,34 @@ plot_group(.y.name = "MuCover",
            .V.gam = 0.5,
            .refline.y = 0.95 )
 
+setwd(overleaf.dir)
+ggsave( "cover_cluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "cover_cluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+
+
+
 plot_group(.y.name = "MuCover",
            .V = 1,
            .V.gam = 0,
            .refline.y = 0.95 )
+
+setwd(overleaf.dir)
+ggsave( "cover_nocluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "cover_nocluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
 
 
 ##### Width #####
@@ -401,10 +462,32 @@ plot_group(.y.name = "MuCover",
 plot_group(.y.name = "MuCIWidth",
            .V = 1,
            .V.gam = 0.5 )
+
+setwd(overleaf.dir)
+ggsave( "width_cluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "width_cluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
      
 plot_group(.y.name = "MuCIWidth",
            .V = 1,
            .V.gam = 0 )
+
+setwd(overleaf.dir)
+ggsave( "width_nocluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
+setwd(results.dir)
+ggsave( "width_nocluster_appendix.pdf",
+        height = 10,
+        width = 8,
+        units = "in")
 
 
 ##### Point Estimate #####

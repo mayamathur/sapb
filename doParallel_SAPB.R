@@ -56,7 +56,7 @@ rm(list=ls())
 
 # # REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
 # # note: total studies is k * per.cluster
-# k = c(20, 40, 80, 300)  # number of clusters prior to selection
+# k = c(20, 40, 80, 200)  # number of clusters prior to selection
 # per.cluster = c(5)  # studies per cluster
 # mu = c(0.6, .8)  # RE distribution mean
 # V = c(1, 0)  # RE heterogeneity
@@ -82,7 +82,7 @@ V = c(1)  # RE heterogeneity
 V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
 sei.min = 1  # runif lower bound for study SEs
 sei.max = c(1.5)  # runif upper bound for study SEs
-eta = c(5)  # selection prob
+eta = c(10)  # selection prob
 q = c(2)
 #q = c(2.2, 1.2)
 boot.reps = c(0)
@@ -91,6 +91,7 @@ bt.type = c("wtd.vanilla")
 orig.meta.model = rev( c("robumeta.lazy") )
 true.dist = "exp"
 SE.corr = FALSE
+select.SE = TRUE
 
 
 # matrix of scenario parameters
@@ -170,7 +171,7 @@ library(robumeta)
 library(metafor)
 library(nleqslv)
 
-sim.reps = 50
+sim.reps = 500
 
 library(here)
 setwd(here:::here("Code"))
@@ -628,7 +629,10 @@ rep.time = system.time({
                            
                            # empirical correlation between SE and true effects
                            SE.corr.emp = rep( d$SE.corr.emp[1], 
-                                              2)
+                                              2),
+                           
+                           # sanity check for normality of true effects
+                           true.effect.shapiro.pval = rep( shapiro.test(d$mui)$p.value, 2 )
     )
     
     # add in scenario parameters
@@ -653,7 +657,7 @@ print(table(rs$scen.name))
 # add rep time and CI width
 rs$doParallel.min = rep.time/60
 rs$MuCIWidth = rs$MuHi - rs$MuLo
-
+mean(rs$MuCIWidth, na.rm=TRUE)
 
 
 # LOCAL ONLY
