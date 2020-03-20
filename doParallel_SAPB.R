@@ -109,7 +109,8 @@ scen.params = expand.grid(k,
                           bt.meta.model,
                           bt.type,
                           true.dist,
-                          SE.corr )
+                          SE.corr,
+                          select.SE )
 
 names(scen.params) = c("k",
                        "per.cluster",
@@ -125,7 +126,8 @@ names(scen.params) = c("k",
                        "bt.meta.model",
                        "bt.type",
                        "true.dist",
-                       "SE.corr" )
+                       "SE.corr",
+                       "select.SE")
 
 
 # remove scenarios with V = 0 but V.gam > 0

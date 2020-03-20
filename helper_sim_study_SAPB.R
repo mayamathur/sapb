@@ -327,8 +327,23 @@ sim_data2 = function(p,
   d$weight = 1
   d$weight[ signif == 0 ] = p$eta
   
-  if ( keep.all.studies == FALSE ) d = d[ publish == 1, ]
-  if ( keep.all.studies == TRUE ) d$publish = publish  # just add the indicator
+  # optionally, also select for small SE
+  # Fi as defined in Supplement
+  # tertiles of empirical SEs prior to selection
+  Fi = rep( 1, nrow(d) )  # so that it has no effect if we're not selecting based on SE
+  if ( p$select.SE == TRUE ) {
+    terts = p$sei.min + (p$sei.max - p$sei.min) * c(1/3, 2/3)
+    Fi[ d$sei < terts[1] ] = 1  # smallest SEs have highest publication probability
+    Fi[ d$sei >= terts[1] & d$sei < terts[2] ] = .9
+    Fi[ d$sei >= terts[2] ] = .8
+  }
+
+  if ( keep.all.studies == FALSE ) d = d[ publish == 1 & Fi == 1, ]
+  if ( keep.all.studies == TRUE ){
+    # just add the indicators
+    d$publish = publish 
+    d$Fi = Fi
+  }
   
   return(d)
 }
