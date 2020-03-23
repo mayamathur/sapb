@@ -65,10 +65,10 @@ per.cluster = c(5)  # studies per cluster
 mu = c(0.2)  # RE distribution mean
 V = c(1)  # RE heterogeneity
 V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
-# sei.min = 1  # runif lower bound for study SEs
-# sei.max = c(1.5)  # runif upper bound for study SEs
-sei.min = .1  # runif lower bound for study SEs   ~ REDUCE SEs
-sei.max = c(.3)  # runif upper bound for study SEs
+sei.min = 1  # runif lower bound for study SEs
+sei.max = c(1.5)  # runif upper bound for study SEs
+# sei.min = .1  # runif lower bound for study SEs   ~ REDUCE SEs
+# sei.max = c(.3)  # runif upper bound for study SEs
 eta = c(1)  # selection prob
 q = c(2)
 boot.reps = c(0)
@@ -363,26 +363,41 @@ rs = foreach( i = 1:sim.reps,
               .errorhandling = "remove"  # this shouldn't happen
 ) %dopar% {
   
-  # simulate exponential data
-  #N = p$k * p$per.cluster
-  N = 20*5
+  # # simulate my own exponential data - WORKS
+  # #N = p$k * p$per.cluster
+  # N = 20*5
+  # 
+  # mui = rexp( n = N,
+  #             rate = 1^(-1/2) )
+  # # shift to have desired mean
+  # mui = (mui - 1^(-1/2)) + 0.2
+  # 
+  # # individual study SEs
+  # sei = runif( n = N,
+  #              min = 1,
+  #              max = 1.5 )
+  # vi = sei^2
+  # 
+  # # individual study point estimates
+  # yi = rnorm( n = N, mean = mui, sd = sei )
+  # 
+  # dat = data.frame(yi, 
+  #                  vi)
   
-  mui = rexp( n = N,
-              rate = 1^(-1/2) )
-  # shift to have desired mean
-  mui = (mui - 1^(-1/2)) + 0.2
+  # simulate with existing fn
+  dat = sim_data2( p = data.frame(k = 20*5,
+                                  per.cluster = 1,
+                                  mu = 0.2,
+                                  V = 1,
+                                  V.gam = 0,
+                                  sei.min = 1,
+                                  sei.max = 1.5,
+                                  eta = 1,
+                                  q = 1,
+                                  true.dist = "exp",
+                                  SE.corr = FALSE,
+                                  select.SE = FALSE ) )
   
-  # individual study SEs
-  sei = runif( n = N,
-               min = 1,
-               max = 1.5 )
-  vi = sei^2
-  
-  # individual study point estimates
-  yi = rnorm( n = N, mean = mui, sd = sei )
-  
-  dat = data.frame(yi, 
-                   vi)
   
   # initialize t2
   re = rma.uni( yi = dat$yi,
