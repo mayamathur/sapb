@@ -75,7 +75,7 @@ boot.reps = c(0)
 bt.meta.model = c("rma.uni")
 bt.type = c("wtd.vanilla")
 orig.meta.model = rev( c("robumeta.lazy") )
-true.dist = "norm" # ~~~ CHANGED
+true.dist = "exp" # ~~~ CHANGED
 SE.corr = FALSE
 select.SE = FALSE
 

@@ -87,7 +87,7 @@ eta = c(1)  # selection prob
 
 
 orig.meta.model = rev( c("robumeta.lazy") )
-true.dist = "exp" # ~~~ CHANGED
+true.dist = "norm" # ~~~ CHANGED
 SE.corr = FALSE
 select.SE = FALSE
 
@@ -142,8 +142,6 @@ scen.params = scen.params[ stupid == FALSE, ]
 #                                scen.params$V > 0 ] = "wtd.score"
 # scen.params$orig.meta.model[ scen.params$V == 0 ] = "fixed"
 
-# compute true P
-scen.params$trueP = 1 - pnorm( ( scen.params$q - scen.params$mu ) / sqrt(scen.params$V) )
 
 
 # scenario names
@@ -208,137 +206,134 @@ rep.time = system.time({
     p = scen.params[ scen.params$scen.name == scen, names(scen.params) != "scen.name"]
     
     
-    ##### Simulate Dataset #####
-    # make sure there's at least 1 nonsignificant study
-    n.nonsig = 0
-    while( n.nonsig == 0 ) {
-      d = sim_data2(p)
-      n.nonsig = sum(d$pval > 0.05 | d$yi < 0)
-      SE.corr.emp = d$SE.corr.emp[1]
-      SE.mean.emp = d$SE.mean.emp[1]
-      
-      P.select.SE.emp = d$P.select.SE.emp[1]
-      P.publish.emp = d$P.publish.emp[1]
-    }
+    # ##### Simulate Dataset #####
+    # # make sure there's at least 1 nonsignificant study
+    # n.nonsig = 0
+    # while( n.nonsig == 0 ) {
+    #   d = sim_data2(p)
+    #   n.nonsig = sum(d$pval > 0.05 | d$yi < 0)
+    #   SE.corr.emp = d$SE.corr.emp[1]
+    #   SE.mean.emp = d$SE.mean.emp[1]
+    #   
+    #   P.select.SE.emp = d$P.select.SE.emp[1]
+    #   P.publish.emp = d$P.publish.emp[1]
+    # }
 
-    # dim(d)
-    # prop.table( table(d$weight) )
+    d = sim_data2(p)
     
- 
-    
-    ##### Corrected Meta-Analyses #####
-    
-    # fixed-effects model
-    if ( p$orig.meta.model == "fixed" ) {
-      
-      meta.naive = correct_est_fe( yi = d$yi,
-                                   vi = d$vi,
-                                   eta = p$eta )
-      muhat.naive = meta.naive$est.adj
-      mu.se.naive = NA
-      t2.naive = NA
-      mu.lo.naive = meta.naive$lo.adj
-      mu.hi.naive = meta.naive$hi.adj
-      t2.se.naive = NA
-      t2.lo.naive = NA
-      t2.hi.naive = NA
-      
-      # for this specification, can also get analytic Phat
-      Phat.naive = data.frame( Est = NA,
-                               lo = NA,
-                               hi = NA
-                                )
-    }
-
-    
-    # Vevea-Woods RE model
-    if ( p$orig.meta.model == "vevea" ) {
-      meta.naive = correct_est_re( effect = d$yi,
-                                    v = d$vi,
-                                    weights = c(1, 1/p$eta) )
-      muhat.naive = meta.naive$est[ meta.naive$param == "b" ]
-      mu.se.naive = meta.naive$se[ meta.naive$param == "b" ]  # used for Phat later
-      t2.naive = meta.naive$est[ meta.naive$param == "t2" ]
-      mu.lo.naive =  meta.naive$lo[ meta.naive$param == "b" ]
-      mu.hi.naive = meta.naive$hi[ meta.naive$param == "b" ]
-      t2.se.naive = meta.naive$se[ meta.naive$param == "t2" ]
-      t2.lo.naive = meta.naive$lo[ meta.naive$param == "t2" ]
-      t2.hi.naive = meta.naive$hi[ meta.naive$param == "t2" ]
-      
-      # for this specification, can also get analytic Phat
-      Phat.naive = suppressWarnings( prop_stronger2( q = p$q,
-                                                  M = muhat.naive,
-                                                  t2 = t2.naive,
-                                                  se.M = mu.se.naive,
-                                                  se.t2 = t2.se.naive,
-                                                  tail = "above",
-                                                  boot = "never",
-                                                  always.analytical = TRUE ) )
-    }
-    
-    # my version of Vevea-Woods model
-    if ( p$orig.meta.model == "wtd.score" ) {
-      
-      
-      meta.naive = correct_est_re_score( yi = d$yi,
-                                          vi = d$vi,
-                                          weights = d$weight,
-                                          start.ests = c(0,0) )
-      
-      muhat.naive = meta.naive$est[ meta.naive$param == "b" ]
-      mu.se.naive = meta.naive$se[ meta.naive$param == "b" ]  # used for Phat later
-      t2.naive = meta.naive$est[ meta.naive$param == "t2" ]
-      mu.lo.naive =  meta.naive$lo[ meta.naive$param == "b" ]
-      mu.hi.naive = meta.naive$hi[ meta.naive$param == "b" ]
-      t2.se.naive = meta.naive$se[ meta.naive$param == "t2" ]
-      t2.lo.naive = meta.naive$lo[ meta.naive$param == "t2" ]
-      t2.hi.naive = meta.naive$hi[ meta.naive$param == "t2" ]
-      
-      if ( muhat.naive > 500 ) break
-      
-      # for this specification, can also get analytic Phat
-      Phat.naive = suppressWarnings( prop_stronger2( q = p$q,
-                                                     M = muhat.naive,
-                                                     t2 = t2.naive,
-                                                     se.M = mu.se.naive,
-                                                     se.t2 = t2.se.naive,
-                                                     tail = "above",
-                                                     boot = "never",
-                                                     always.analytical = TRUE ) )
-    }
-    
-    
-    if ( p$orig.meta.model == "robumeta" ) {
-      # if we did bootstrapping to initialize t2hat, use that
-      if ( boot.reps > 0 ) t2.guess = t2hat.bt
-      
-      # if we haven't bootstrapped, fit the wtd score RE model to guess tau^2
-      if ( boot.reps == 0 ) {
-        re = correct_est_re_score( yi = d$yi,
-                                  vi = d$vi,
-                                  weights = d$weight,
-                                  start.ests = c(0,0) )
-        t2.guess = re$est[ re$param == "t2" ]
-      }
-          
-      meta.naive = robu( yi ~ 1, 
-                         data = d, 
-                         studynum = cluster,
-                         userweights = d$weight / (d$vi + t2.guess),
-                         #userweights = weight,
-                         var.eff.size = vi,
-                         small = TRUE )
-      
-      muhat.naive = meta.naive$b.r
-      mu.se.naive = meta.naive$reg_table[["SE"]]  # used for Phat later
-      t2.naive = NA
-      mu.lo.naive = meta.naive$reg_table$CI.L
-      mu.hi.naive = meta.naive$reg_table$CI.U
-      t2.lo.naive = NA
-      t2.hi.naive = NA
-      
-      Phat.naive = list( lo = NA, hi = NA )
-    }
+    # ##### Corrected Meta-Analyses #####
+    # 
+    # # fixed-effects model
+    # if ( p$orig.meta.model == "fixed" ) {
+    #   
+    #   meta.naive = correct_est_fe( yi = d$yi,
+    #                                vi = d$vi,
+    #                                eta = p$eta )
+    #   muhat.naive = meta.naive$est.adj
+    #   mu.se.naive = NA
+    #   t2.naive = NA
+    #   mu.lo.naive = meta.naive$lo.adj
+    #   mu.hi.naive = meta.naive$hi.adj
+    #   t2.se.naive = NA
+    #   t2.lo.naive = NA
+    #   t2.hi.naive = NA
+    #   
+    #   # for this specification, can also get analytic Phat
+    #   Phat.naive = data.frame( Est = NA,
+    #                            lo = NA,
+    #                            hi = NA
+    #                             )
+    # }
+    # 
+    # 
+    # # Vevea-Woods RE model
+    # if ( p$orig.meta.model == "vevea" ) {
+    #   meta.naive = correct_est_re( effect = d$yi,
+    #                                 v = d$vi,
+    #                                 weights = c(1, 1/p$eta) )
+    #   muhat.naive = meta.naive$est[ meta.naive$param == "b" ]
+    #   mu.se.naive = meta.naive$se[ meta.naive$param == "b" ]  # used for Phat later
+    #   t2.naive = meta.naive$est[ meta.naive$param == "t2" ]
+    #   mu.lo.naive =  meta.naive$lo[ meta.naive$param == "b" ]
+    #   mu.hi.naive = meta.naive$hi[ meta.naive$param == "b" ]
+    #   t2.se.naive = meta.naive$se[ meta.naive$param == "t2" ]
+    #   t2.lo.naive = meta.naive$lo[ meta.naive$param == "t2" ]
+    #   t2.hi.naive = meta.naive$hi[ meta.naive$param == "t2" ]
+    #   
+    #   # for this specification, can also get analytic Phat
+    #   Phat.naive = suppressWarnings( prop_stronger2( q = p$q,
+    #                                               M = muhat.naive,
+    #                                               t2 = t2.naive,
+    #                                               se.M = mu.se.naive,
+    #                                               se.t2 = t2.se.naive,
+    #                                               tail = "above",
+    #                                               boot = "never",
+    #                                               always.analytical = TRUE ) )
+    # }
+    # 
+    # # my version of Vevea-Woods model
+    # if ( p$orig.meta.model == "wtd.score" ) {
+    #   
+    #   
+    #   meta.naive = correct_est_re_score( yi = d$yi,
+    #                                       vi = d$vi,
+    #                                       weights = d$weight,
+    #                                       start.ests = c(0,0) )
+    #   
+    #   muhat.naive = meta.naive$est[ meta.naive$param == "b" ]
+    #   mu.se.naive = meta.naive$se[ meta.naive$param == "b" ]  # used for Phat later
+    #   t2.naive = meta.naive$est[ meta.naive$param == "t2" ]
+    #   mu.lo.naive =  meta.naive$lo[ meta.naive$param == "b" ]
+    #   mu.hi.naive = meta.naive$hi[ meta.naive$param == "b" ]
+    #   t2.se.naive = meta.naive$se[ meta.naive$param == "t2" ]
+    #   t2.lo.naive = meta.naive$lo[ meta.naive$param == "t2" ]
+    #   t2.hi.naive = meta.naive$hi[ meta.naive$param == "t2" ]
+    #   
+    #   if ( muhat.naive > 500 ) break
+    #   
+    #   # for this specification, can also get analytic Phat
+    #   Phat.naive = suppressWarnings( prop_stronger2( q = p$q,
+    #                                                  M = muhat.naive,
+    #                                                  t2 = t2.naive,
+    #                                                  se.M = mu.se.naive,
+    #                                                  se.t2 = t2.se.naive,
+    #                                                  tail = "above",
+    #                                                  boot = "never",
+    #                                                  always.analytical = TRUE ) )
+    # }
+    # 
+    # 
+    # if ( p$orig.meta.model == "robumeta" ) {
+    #   # if we did bootstrapping to initialize t2hat, use that
+    #   if ( boot.reps > 0 ) t2.guess = t2hat.bt
+    #   
+    #   # if we haven't bootstrapped, fit the wtd score RE model to guess tau^2
+    #   if ( boot.reps == 0 ) {
+    #     re = correct_est_re_score( yi = d$yi,
+    #                               vi = d$vi,
+    #                               weights = d$weight,
+    #                               start.ests = c(0,0) )
+    #     t2.guess = re$est[ re$param == "t2" ]
+    #   }
+    #       
+    #   meta.naive = robu( yi ~ 1, 
+    #                      data = d, 
+    #                      studynum = cluster,
+    #                      userweights = d$weight / (d$vi + t2.guess),
+    #                      #userweights = weight,
+    #                      var.eff.size = vi,
+    #                      small = TRUE )
+    #   
+    #   muhat.naive = meta.naive$b.r
+    #   mu.se.naive = meta.naive$reg_table[["SE"]]  # used for Phat later
+    #   t2.naive = NA
+    #   mu.lo.naive = meta.naive$reg_table$CI.L
+    #   mu.hi.naive = meta.naive$reg_table$CI.U
+    #   t2.lo.naive = NA
+    #   t2.hi.naive = NA
+    #   
+    #   Phat.naive = list( lo = NA, hi = NA )
+    # }
 
     # unlike the above, this one uses a lazier initial guess for tau^2
     if ( p$orig.meta.model == "robumeta.lazy" ) {
@@ -441,6 +436,15 @@ rep.time = system.time({
 
 
 #}  # ends loop over scens
+
+
+
+sum(is.na(rs$MuCover))
+mean(rs$MuCover)
+
+
+
+
 
 
 nrow(rs)

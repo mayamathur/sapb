@@ -388,7 +388,7 @@ sim_data2 = function(p,
     if ( p$true.dist == "exp" ) {
       true.effect.var = p$V - p$V.gam
       # set var using properties of exponential
-      gam2i = rexp( n = p$k, rate = true.effect.var^(-1/2) )
+      gam2i = rexp( n = N, rate = true.effect.var^(-1/2) )
       # shift to have mean of 0
       # use fact that var = mean^2 in exponential
       gam2i = gam2i - true.effect.var^(1/2)
