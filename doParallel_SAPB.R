@@ -84,11 +84,8 @@ V.gam = c(0)  # variance of random intercepts (can't be > V because that's total
 sei.min = 1  # runif lower bound for study SEs
 sei.max = c(1.5)  # runif upper bound for study SEs
 eta = c(1)  # selection prob
-q = c(2)
-#q = c(2.2, 1.2)
-boot.reps = c(0)
-bt.meta.model = c("rma.uni")
-bt.type = c("wtd.vanilla")
+
+
 orig.meta.model = rev( c("robumeta.lazy") )
 true.dist = "exp" # ~~~ CHANGED
 SE.corr = FALSE
@@ -104,11 +101,10 @@ scen.params = expand.grid(k,
                           sei.min,
                           sei.max,
                           eta,
-                          q,
-                          boot.reps,
+                     
+               
                           orig.meta.model,
-                          bt.meta.model,
-                          bt.type,
+       
                           true.dist,
                           SE.corr,
                           select.SE )
@@ -121,11 +117,10 @@ names(scen.params) = c("k",
                        "sei.min",
                        "sei.max",
                        "eta",
-                       "q",
-                       "boot.reps",
+                
+           
                        "orig.meta.model",
-                       "bt.meta.model",
-                       "bt.type",
+                    
                        "true.dist",
                        "SE.corr",
                        "select.SE")
@@ -212,8 +207,6 @@ rep.time = system.time({
     # exclude the column with the scenario name itself (col) 
     p = scen.params[ scen.params$scen.name == scen, names(scen.params) != "scen.name"]
     
-    boot.reps = p$boot.reps
-    
     
     ##### Simulate Dataset #####
     # make sure there's at least 1 nonsignificant study
@@ -231,150 +224,7 @@ rep.time = system.time({
     # dim(d)
     # prop.table( table(d$weight) )
     
-  
-    
-    ##### Get T2 and Phat Via IPCW Bootstrap #####
-    # purpose is to get Phat and tau^2 since robumeta can't help with that
-    if ( boot.reps > 0 ) {
-      
-      if ( p$bt.type == "wtd.cluster" ) {
-        
-        t2b = rep(NA, boot.reps)
-        Mb = rep(NA, boot.reps)
-        
-        for ( i in 1:boot.reps ) {
-          # stage 1: resample clusters, leaving observations intact
-          #  no weights
-          #https://stats.stackexchange.com/questions/46821/bootstrapping-hierarchical-multilevel-data-resampling-clusters
-          cluster.ids = data.frame(cluster = sample(d$cluster, replace = TRUE))
-          b = d %>% inner_join(cluster.ids, by = 'cluster')
-          
-          # stage 2: resample observations with individual weights, ignoring clusters
-          b = sample_n( b, size = nrow(b), replace = TRUE, weight = b$weight )
-          
-          # meta-analyze the bootstraps
-          if ( p$bt.meta.model == "rma.uni" ) {
-            
-            #tryCatch( {
-            mb = rma.uni( yi = b$yi,
-                          vi = b$vi,
-                          knha = TRUE,
-                          method = "REML",
-                          control=list(maxiter=500, stepadj=0.5) )
-            
-            Mb[i] = mb$b
-            t2b[i] = mb$tau2
-            # }, error = function(err) {
-            #   stop("asdfasdf")
-            #   Mb[i] = "rma.uni error"
-            #   t2b[i] = "rma.uni error"
-            # } )
-            
-          }
-          
-          if ( p$bt.meta.model == "robumeta" ) {
-            # clustered version
-            # version that's "naive" wrt pub bias, but accounts for clustering
-            mb = robu( yi ~ 1, 
-                       data = b, 
-                       var.eff.size = vi,
-                       small = TRUE )
-            Mb[i] = mb$b.r
-            t2b[i] = mb$mod_info$tau.sq  # this works because no userweights
-          }
-          
-        }  # end loop over boot.reps iterates
-        
-        # mean estimates (using IPCW)
-        t2hat.bt = mean( t2b )
-        muhat.bt = mean( Mb ) # no longer necessary because we're IPCW-weighting the naive models
-        t2.se.bt = sd(t2b)
-        
-        # in case there is some weird problem with 
-        #  computing the boot CI
-        tryCatch( {
-          percCIs = list( quantile( t2b, c(.025, 0.975) ), 
-                          quantile( Mb, c(.025, 0.975) ) )
-        }, error = function(err) {
-          percCIs <<- list( c(NA, NA), c(NA, NA) )
-        } )
-        
-      }  # end wtd cluster bootstrap
-      
-      
-      if ( p$bt.type == "wtd.vanilla" ) {
-        # NOT clustered
-        boot.res = boot( data = d, 
-                         parallel = "multicore",
-                         R = boot.reps, 
-                         weights = d$weight,
-                         statistic = function(original, indices) {
-                           
-                           b = original[indices,]
-                           
-                           if ( p$bt.meta.model == "rma.uni" ) {
-                             # meta-analyze the bootstraps
-                             tryCatch( {
-                               mb = rma.uni( yi = b$yi,
-                                             vi = b$vi,
-                                             knha = TRUE,
-                                             method = "REML",
-                                             control=list(maxiter=500, stepadj=0.5) )
-                               
-                               Mb = mb$b
-                               t2b = mb$tau2
-                             }, error = function(err) {
-                               Mb = NA
-                               t2b = NA
-                             } )
-                           }
-                           
-                           if ( p$bt.meta.model == "robumeta" ) {
-                             # clustered version
-                             # version that's "naive" wrt pub bias, but accounts for clustering
-                             mb = robu( yi ~ 1, 
-                                        data = b, 
-                                        var.eff.size = vi,
-                                        small = TRUE )
-                             Mb = mb$b.r
-                             t2b = mb$mod_info$tau.sq  # this works because no userweights
-                           }
-                           
-                           c(t2b, Mb)
-                         }
-        )  # end call to boot()
-        
-        # TEST ONLY
-        mean( boot.res$t[,1] )
-        head(boot.res$t)
-        
-        # mean estimates (using IPCW)
-        t2hat.bt = mean( boot.res$t[,1] )
-        muhat.bt = mean( boot.res$t[,2] ) # no longer necessary because we're IPCW-weighting the naive models
-        t2.se.bt = sd(boot.res$t[,1])
-        
-        # in case there is some weird problem with 
-        #  computing the boot CI
-        tryCatch( {
-          percCIs = get_boot_CIs(boot.res, "perc", n.ests = 2)
-        }, error = function(err) {
-          percCIs <<- list( c(NA, NA), c(NA, NA) )
-        } )
-        
-      }  # end wtd vanilla bootstrap
-      
-    }  # end loop for boot.reps > 0
-    
-
-    if ( boot.reps == 0 ) {
-      percCIs = list( c(NA, NA), c(NA, NA), c(NA, NA) )
-      muhat.bt = NA
-      t2hat.bt = NA
-      Phat.bt = data.frame( Est = NA, 
-                            lo = NA, 
-                            hi = NA )
-    }
-    
+ 
     
     ##### Corrected Meta-Analyses #####
     
@@ -458,27 +308,6 @@ rep.time = system.time({
     }
     
     
-    if ( p$orig.meta.model == "rma.uni" ) {
-      # of course, with eta != 1, this won't work
-      # and the SEs/coverage will be anticonservative with strong clustering
-      meta.naive = rma.uni( yi = d$yi,
-                     vi = d$vi,
-                     knha = TRUE,
-                     weights = d$weight * 1 / (d$vi + t2hat.bt),
-                     method = "REML", 
-                     control=list(maxiter=500, stepadj=0.5) )
-      
-      muhat.naive = meta.naive$b
-      mu.se.naive = meta.naive$se  # used for Phat later
-      t2.naive = meta.naive$tau2
-      mu.lo.naive = meta.naive$ci.lb
-      mu.hi.naive = meta.naive$ci.ub
-      t2.lo.naive = tau_CI(meta.naive)[1]
-      t2.hi.naive = tau_CI(meta.naive)[2]
-      
-      Phat.naive = list( lo = NA, hi = NA )
-    }
-    
     if ( p$orig.meta.model == "robumeta" ) {
       # if we did bootstrapping to initialize t2hat, use that
       if ( boot.reps > 0 ) t2.guess = t2hat.bt
@@ -513,16 +342,11 @@ rep.time = system.time({
 
     # unlike the above, this one uses a lazier initial guess for tau^2
     if ( p$orig.meta.model == "robumeta.lazy" ) {
-      # if we did bootstrapping to initialize t2hat, use that
-      if ( boot.reps > 0 ) t2.guess = t2hat.bt
-      
-      # if we haven't bootstrapped, fit the lazy, biased rma.uni model
-      #  to guess at t2
-      if ( boot.reps == 0 ) {
-        re = rma.uni( yi = d$yi,
-                      vi = d$vi )
-        t2.guess = re$tau2
-      }
+   
+      # guess t2 by fitting the lazy, biased rma.uni model
+      re = rma.uni( yi = d$yi,
+                    vi = d$vi )
+      t2.guess = re$tau2
       
       meta.naive = robu( yi ~ 1, 
                          data = d, 
@@ -544,27 +368,7 @@ rep.time = system.time({
     }
     
     
-    # sanity check on weighting
-    # prop.table( table(d$weight) )
-    
-    
-   
-    ##### Compute Phat.bt #####
-    # use point estimate and SE from naive model, 
-    # but bootstrapped t2 and SE
-    # but note that we aren't bootstrapping Phat itself
-    if ( boot.reps > 0 ) {
-      Phat.bt = suppressWarnings( prop_stronger2( q = p$q,
-                                                  M = muhat.naive,
-                                                  t2 = t2hat.bt,
-                                                  se.M = mu.se.naive,
-                                                  se.t2 = t2.se.bt,
-                                                  tail = "above",
-                                                  boot = "never",
-                                                  always.analytical = TRUE ) )
-    } 
-    
-    
+
     ##### Estimate FE mean in nonsignificant/negative studies #####
     
     NS = ( d$pval > 0.05 | d$yi < 0 )
@@ -578,80 +382,52 @@ rep.time = system.time({
     # dataframe with 3 rows, one for each method
 
     rows =     data.frame( 
-                           # BELOW IS FOR MULTIPLE METHODS
-                           # method of calculating CI: exponentiate logit or not?
-                           Method = c( "Naive",
-                                       "PercBT" ),
+                           
+                           Method = c( "Naive" ),
                            
                            # stats for mean estimate
                            # note that both boot CI methods use the same point estimate
-                           MuEst = c( muhat.naive,
-                                      muhat.bt ),  
+                           MuEst = c( muhat.naive ),  
                            
-                           MuCover = c( covers( p$mu, mu.lo.naive, mu.hi.naive ),
-                                        covers( p$mu, percCIs[[2]][1], percCIs[[2]][2] ) ),
+                           MuCover = c( covers( p$mu, mu.lo.naive, mu.hi.naive ) ),
 
-                           MuLo = c( mu.lo.naive,
-                                     percCIs[[2]][1] ),
+                           MuLo = c( mu.lo.naive ),
                            
-                           MuHi = c( mu.hi.naive,
-                                     percCIs[[2]][2] ),
+                           MuHi = c( mu.hi.naive ),
                            
                            # stats for t2 estimate
-                           T2Est = c( t2.naive,
-                                      t2hat.bt ),
+                           T2Est = c( t2.naive ),
                            
-                           T2Cover = c( covers( p$V, t2.lo.naive, t2.hi.naive ),
-                                        covers( p$V, percCIs[[1]][1], percCIs[[1]][2] ) ),
+                           T2Cover = c( covers( p$V, t2.lo.naive, t2.hi.naive ) ),
                            
-                           T2Lo = c( t2.lo.naive,
-                                     percCIs[[1]][1] ),
+                           T2Lo = c( t2.lo.naive ),
                            
-                           T2Hi = c( t2.hi.naive,
-                                     percCIs[[1]][2] ),
-                           
-                           # stats for Phat estimate
-                           # the Phat.naive will only be filled in for the Vevea model
-                           PEst = c( Phat.naive$Est,  
-                                      Phat.bt$Est ),
-                           
-                           PCover = c( covers( p$trueP, Phat.naive$lo, Phat.naive$hi ),
-                                       covers( p$trueP, Phat.bt$lo, Phat.bt$hi ) ),
-                           
-                           PLo = c( Phat.naive$lo,
-                                     Phat.bt$lo ),
-                           
-                           PHi = c( Phat.bt$hi,
-                                    Phat.bt$hi ),
+                           T2Hi = c( t2.hi.naive ),
+                          
                            
                            # observed sample size (after selection)
-                           k.obs = rep( nrow(d), 2 ),
+                           k.obs = nrow(d),
                            
                            # number of nonsignificant studies before selection
-                           n.nonsig = rep( sum(d$pval > 0.05), 2 ),
+                           n.nonsig = sum(d$pval > 0.05),
                            
                            # FE mean in NS studies
-                           nonsig.fe.mean = rep( nonsig.fe.mean,
-                                             2 ),
+                           nonsig.fe.mean = nonsig.fe.mean,
                            
                            # empirical correlation between SE and true effects
-                           SE.corr.emp = rep( d$SE.corr.emp[1], 
-                                              2),
+                           SE.corr.emp = d$SE.corr.emp[1],
                            
                            # empirical correlation between SE and true effects
-                           SE.mean.emp = rep( d$SE.mean.emp[1], 
-                                              2),
+                           SE.mean.emp = d$SE.mean.emp[1],
                            
                            # E[Fi]
-                           P.select.SE.emp = rep( d$P.select.SE.emp[1], 
-                                              2),
+                           P.select.SE.emp = d$P.select.SE.emp[1],
                            
                            # E[Di]
-                           P.publish.emp = rep( d$P.publish.emp[1], 
-                                              2),
+                           P.publish.emp = d$P.publish.emp[1],
                   
                            # sanity check for normality of true effects
-                           true.effect.shapiro.pval = rep( shapiro.test(d$mui)$p.value, 2 )
+                           true.effect.shapiro.pval = shapiro.test(d$mui)$p.value
     )
     
     # add in scenario parameters
