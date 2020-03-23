@@ -200,7 +200,7 @@ scen = "scen.1"
 
 # for ( scen in scen.params$scen.name ) {  # LOCAL ONLY
 #  cat("\n\nscen ", scen)  # LOCAL ONLY
-
+rm(rs)
 rep.time = system.time({
 
   rs = foreach( i = 1:sim.reps,
@@ -680,6 +680,8 @@ mean(rs$MuCIWidth, na.rm=TRUE)
 
 
 # LOCAL ONLY
+mean(rs$MuCover, na.rm=TRUE)
+
 my.vars = c("MuEst", "MuCover",
             "MuLo", "MuHi",
             "MuCIWidth",
