@@ -251,6 +251,30 @@ get_boot_CIs = function(boot.res, type, n.ests) {
 # p$SE.corr: TRUE or FALSE
 # keep.all.studies: should we return all studies, including the unpublished ones?
 
+# unclustered exponential
+sim_data_DEBUG = function(p) {
+  N = p$k * p$per.cluster
+  true.effect.var = p$V
+  # set var using properties of exponential
+  gam2i = rexp( n = p$k, rate = true.effect.var^(-1/2) )
+  # shift to have mean of 0
+  # use fact that var = mean^2 in exponential
+  gam2i = gam2i - true.effect.var^(1/2)
+  
+  # individual study SEs
+  sei = runif( n = N, min = p$sei.min, max = p$sei.max )
+  vi = sei^2
+  
+  mui = p$mu + gam2i
+  
+  # individual study point estimates
+  yi = rnorm( n = N, mean = mui, sd = sei )
+  
+  return(data.frame(yi, sei, vi, mui))
+}
+
+
+
 sim_data2 = function(p,
                      keep.all.studies = FALSE) {
   
@@ -333,17 +357,28 @@ sim_data2 = function(p,
   Fi = rep( 1, nrow(d) )  # so that it has no effect if we're not selecting based on SE
   if ( p$select.SE == TRUE ) {
     terts = p$sei.min + (p$sei.max - p$sei.min) * c(1/3, 2/3)
-    Fi[ d$sei < terts[1] ] = 1  # smallest SEs have highest publication probability
-    Fi[ d$sei >= terts[1] & d$sei < terts[2] ] = .9
-    Fi[ d$sei >= terts[2] ] = .8
+    # prob of inclusion based on SE
+    P.Fi = rep(NA, nrow(d))
+    P.Fi[ d$sei < terts[1] ] = 1
+    #Fi[ d$sei >= terts[1] ] = 0
+    P.Fi[ d$sei >= terts[1] & d$sei < terts[2] ] = .75
+    P.Fi[ d$sei >= terts[2] ] = .5
+    Fi = rbinom( n = nrow(d),
+                 size = 1,
+                 prob = P.Fi )
   }
-
+  
   if ( keep.all.studies == FALSE ) d = d[ publish == 1 & Fi == 1, ]
   if ( keep.all.studies == TRUE ){
     # just add the indicators
     d$publish = publish 
     d$Fi = Fi
   }
+  
+  # record the mean empirical SE (after publication bias) as sanity check on SE selection
+  d$SE.mean.emp = mean(d$sei)
+  d$P.select.SE.emp = mean(Fi)
+  d$P.publish.emp = mean(publish)
   
   return(d)
 }
@@ -876,7 +911,7 @@ sbatch_skeleton <- function() {
 #now run normal batch commands
 
 ml load R
-srun R -f PATH_TO_R_SCRIPT ARGS_TO_R_SCRIPT")
+R -f PATH_TO_R_SCRIPT ARGS_TO_R_SCRIPT")
 }
 
 

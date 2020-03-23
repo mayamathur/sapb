@@ -1,9 +1,14 @@
 
+# overleaf.dir = "~/Dropbox/Apps/Overleaf/SAPB manu and appendix/R_objects"
+# results.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results"
+# data.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results/*2019-1-6 in manuscript"
+
+
+
+
 overleaf.dir = "~/Dropbox/Apps/Overleaf/SAPB manu and appendix/R_objects"
-results.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results"
-data.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results/*2019-1-6 in manuscript"
-
-
+data.dir = "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Simulation study/Results/*2020-3-21 Expo with selection on SE"
+results.dir = data.dir
 
 ################################### HELPER FN ###################################
 
@@ -118,6 +123,11 @@ d = d[ d$Method == "Naive", ]
 # should always be "exp"
 table(d$true.dist)
 
+# should be half TRUE and half FALSE
+table(d$select.SE)
+d %>% group_by(select.SE) %>%
+  summarise( mean(SE.mean.emp, na.rm = TRUE) )
+
 
 # other NA rows
 ( cant.be.na = names(d)[3:16] )
@@ -145,7 +155,7 @@ sim.res["min.sim.reps"] = min(as.numeric(table(d$scen.name) ))
 
 ##### Number of Published Studies #####
 # number of observed studies should decline with larger eta
-( n.studies = d %>% group_by(k, V, V.gam, eta, mu) %>% summarise( k.obs = mean(k.obs),
+( n.studies = d %>% group_by(k, V, V.gam, eta, mu, select.SE) %>% summarise( k.obs = mean(k.obs),
                                          n.nonsig = median(n.nonsig),
                                          SE.corr = median(SE.corr.emp) ) )
 setwd(results.dir)
@@ -166,8 +176,35 @@ write.csv(prop.missing, "prop_missing.csv", row.names = FALSE)
 
 ################################### AGGREGATE AND RECODE CERTAIN BRATTY VARIABLES ################################### 
 
-( analysis.vars = names(d)[ 19:38 ] )
-( grouping.vars = names(d)[ ! names(d) %in% c( "X1", "X", analysis.vars ) ] )  # these are the scenario variables
+
+# quick check
+View( d %>% group_by(select.SE) %>%
+        summarise( mean(MuEst, na.rm = TRUE),
+                   median(MuEst, na.rm = TRUE),
+                   mean(MuCover, na.rm = TRUE) )
+)
+
+# bm
+( analysis.vars = c(names(d)[ 19:38 ], "MuCIWidth") )
+
+# these are the scenario variables; taken from genSbatch
+grouping.vars = c("k",
+                  "per.cluster",
+                  "mu",
+                  "V",
+                  "V.gam",
+                  "sei.min",
+                  "sei.max",
+                  "eta",
+                  "q",
+                  "boot.reps",
+                  "orig.meta.model",
+                  "bt.meta.model",
+                  "bt.type",
+                  "true.dist", 
+                  "SE.corr",
+                  "select.SE" )
+
 
 # cast analysis variables as numeric
 want.numeric = which( !names(d) %in% c("scen.name",
@@ -179,25 +216,26 @@ want.numeric = which( !names(d) %in% c("scen.name",
                                        "PCover") )
 d[,want.numeric] = sapply( d[,want.numeric], as.numeric )
 
-# can't include these in the is.numeric above since they become 1/2
+# can't include these in the is.numeric above since they become 1 or 2
 d$MuCover = as.logical(d$MuCover)
 d$T2Cover = as.logical(d$T2Cover)
 d$PCover = as.logical(d$PCover)
 
 # aggregate statistical metrics of interest by scenario
 # use median for some variables and mean for others
-take.median = c("MuCIWidth", "MuEst", "n.nonsig", "k.obs")
+#take.median = c("MuCIWidth", "MuEst", "n.nonsig", "k.obs")
+take.median = c("MuCIWidth", "n.nonsig", "k.obs")
 ( agg = d %>% group_by_at( vars( one_of( grouping.vars ) ) ) %>%
     summarise_at( vars( one_of(analysis.vars[ ! analysis.vars %in% take.median ]) ),
                   mean, na.rm = TRUE ) )
-dim(agg) # should be 280 (number of unique scenarios)
+dim(agg) # should equal the number of unique scenarios (unless sims aren't done running)
 
 # add variables that need median
 agg2 = d %>% group_by_at( vars( one_of( grouping.vars ) ) ) %>%
   summarise_at( vars( take.median ),
                 median, na.rm = TRUE )
 agg$MuCIWidth = agg2$MuCIWidth
-agg$MuEst = agg2$MuEst
+#agg$MuEst = agg2$MuEst
 agg$n.nonsig = agg2$n.nonsig
 
 
@@ -226,6 +264,10 @@ agg$orig.pretty[ agg$orig.meta.model == "robumeta.lazy" &
                    agg$V.gam > 0 ] = "Robust clustered"
 
 
+agg$select.SE.pretty = rep(NA, nrow(agg))
+agg$select.SE.pretty[ agg$select.SE == TRUE ] = "Selected for small SE"
+agg$select.SE.pretty[ agg$select.SE == FALSE ] = "Not selected on SE"
+
 agg = droplevels(agg)
 
 
@@ -243,59 +285,41 @@ table(agg2$orig.meta.model, agg2$V.gam)
 agg2 = droplevels(agg2)
 
 colors = c("orange", "red", "black", "blue")
-
+shapes = c(16,2)
 
 ##### Coverage #####
-# this plot is not very informative because coverage is basically always the same
-# so not putting in paper
-
-  ggplot( agg2, aes_string( x="eta", y="MuCover", color="orig.pretty" ) ) +
-
-  geom_hline( yintercept = 0.95, lty = 2, color = "red") +
-
-  geom_line(lwd=1) +
-  geom_point(size=2) +
-  theme_bw() +
-  scale_color_manual(values=colors) +
-
-  facet_grid( k.pretty ~ mu,
-              labeller = label_bquote( cols = mu ~ "=" ~ .(mu) ) ) +
-
-  guides(color=guide_legend(title="Model")) +
-
-  scale_y_continuous( limits = c( 0.5, 1),
-                      breaks = c( 0.5, 1, 0.1) ) +
-
-
-  scale_x_continuous( limits = c(min(agg2$eta),
-                                 max(agg2$eta)),
-                      breaks = unique(agg2$eta) ) +
-  xlab( bquote(eta) ) +
-  ylab( bquote(hat(mu) ~ " coverage") )
-
-
-# a simpler summary:
-( coverage.table = agg2 %>% group_by(orig.meta.model, V.gam) %>%
+( coverage.table = agg2 %>% group_by(orig.meta.model, V.gam, select.SE) %>%
   summarise( MeanCover = mean(MuCover),
              MinCover = min(MuCover) ) )
 
+( coverage.table = agg2 %>% group_by(orig.meta.model, V.gam) %>%
+    summarise( MeanCover = mean(MuCover),
+               MinCover = min(MuCover) ) )
+
+
+
 
 ##### Point Estimate #####
-ggplot( agg2, aes_string( x="eta", y="MuEst", color="orig.pretty" ) ) +
+ggplot( agg2, aes_string( x="eta",
+                          y="MuEst",
+                          color="orig.pretty",
+                          shape = "select.SE.pretty") ) +
   
   geom_hline(aes(yintercept=mu), lty = 2, color="red") +
   
   geom_line(lwd=1) +
-  geom_point(size=2) +
+  geom_point(size=4) +
   theme_bw() +
   scale_color_manual(values=colors) +
+  scale_shape_manual( values = shapes)+
   
   #facet_grid( k.pretty ~ mu.pretty ) +
   
   facet_grid( k.pretty ~ mu,
               labeller = label_bquote( cols = mu ~ "=" ~ .(mu) ) ) +
   
-  guides(color=guide_legend(title="Model")) +
+  guides( color=guide_legend(title="Model"),
+          shape = guide_legend(title="Additional selection on SE")) +
   
   scale_y_continuous( limits = c(0, 1),
                       breaks = seq(0, 1, .2)) +
@@ -304,27 +328,33 @@ ggplot( agg2, aes_string( x="eta", y="MuEst", color="orig.pretty" ) ) +
                                  max(agg2$eta)), 
                       breaks = unique(agg2$eta) ) +
   xlab( bquote(eta) ) +
-  ylab( bquote( "Median " ~ hat(mu) ) ) 
+  ylab( bquote( "Mean " ~ hat(mu) ) ) 
+
+# bm
   
 setwd(overleaf.dir)
-ggsave( "muhat_main.pdf",
+ggsave( "muhat_exponential.pdf",
         height = 10,
         width = 8,
         units = "in")
 setwd(results.dir)
-ggsave( "muhat_main.pdf",
+ggsave( "muhat_exponential.pdf",
         height = 10,
         width = 8,
         units = "in")
 
 
 ##### CI Width #####
-ggplot( agg2, aes_string( x="eta", y="MuCIWidth", color="orig.pretty" ) ) +
+ggplot( agg2, aes_string( x="eta",
+                          y="MuCIWidth",
+                          color="orig.pretty",
+                          shape = "select.SE.pretty") ) +
   
   geom_line(lwd=1) +
-  geom_point(size=2) +
+  geom_point(size=3) +
   theme_bw() +
   scale_color_manual(values=colors) +
+  scale_shape_manual( values = shapes)+
   
   #facet_grid( k.pretty ~ mu.pretty ) +
   
@@ -342,12 +372,12 @@ ggplot( agg2, aes_string( x="eta", y="MuCIWidth", color="orig.pretty" ) ) +
   ylab( "Median CI width" ) 
 
 setwd(overleaf.dir)
-ggsave( "width_main.pdf",
+ggsave( "width_exponential.pdf",
         height = 10,
         width = 8,
         units = "in")
 setwd(results.dir)
-ggsave( "width_main.pdf",
+ggsave( "width_exponential.pdf",
         height = 10,
         width = 8,
         units = "in")
@@ -369,12 +399,14 @@ sim.res["hi.width.small"] = summary( agg$MuCIWidth[ agg$n.nonsig < 10 ] )["3rd Q
 
 ##### Number of Nonsig Studies #####
 
-ggplot( agg2, aes_string( x="eta", y="n.nonsig", color="orig.pretty" ) ) +
+ggplot( agg2, aes_string( x="eta", y="n.nonsig", color="orig.pretty",
+                          shape = "select.SE.pretty") ) +
   
   geom_line(lwd=1) +
-  geom_point(size=2) +
+  geom_point(size=4) +
   theme_bw() +
   scale_color_manual(values=colors) +
+  scale_shape_manual( values = shapes)+
   
   facet_grid( k.pretty ~ mu,
               labeller = label_bquote( cols = mu ~ "=" ~ .(mu) ) ) +
@@ -387,15 +419,15 @@ ggplot( agg2, aes_string( x="eta", y="n.nonsig", color="orig.pretty" ) ) +
                                  max(agg2$eta)), 
                       breaks = unique(agg2$eta) ) +
   xlab( bquote(eta) ) +
-  ylab( "Median no. published nonpositive studies" ) 
+  ylab( "Median no. published nonaffirmative studies" ) 
 
 setwd(overleaf.dir)
-ggsave( "nnonsig_main.pdf",
+ggsave( "nnonsig_exponential.pdf",
         height = 10,
         width = 8,
         units = "in")
 setwd(results.dir)
-ggsave( "nnonsig_main.pdf",
+ggsave( "nnonsig_exponential.pdf",
         height = 10,
         width = 8,
         units = "in")

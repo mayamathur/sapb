@@ -23,6 +23,10 @@ s = stitch_files(.results.singles.path = "/home/groups/manishad/SAPB/results/lon
 #                  .name.prefix = "long",
 #                  .stitch.file.name="stitched.csv")
 
+mean(as.numeric(s$MuEst), na.rm = TRUE)
+median(as.numeric(s$MuEst), na.rm = TRUE)
+mean(as.logical(s$MuCover), na.rm = TRUE)
+
 table(s$scen)
 
 table(s$orig.meta.model)

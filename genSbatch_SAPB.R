@@ -20,7 +20,7 @@ rm /home/groups/manishad/SAPB/results/*
 path = "/home/groups/manishad/SAPB"
 setwd(path)
 
-k = c(20, 40, 80, 300)  # number of clusters prior to selection
+k = c(20, 40, 80, 200)  # number of clusters prior to selection
 per.cluster = c(5)  # studies per cluster
 mu = c(0.20, 0.80)  # RE distribution mean
 V = c(1, 0)  # RE heterogeneity
@@ -30,13 +30,13 @@ sei.max = c(1.5)  # runif upper bound for study SEs
 eta = c(100, 50, 20, 10, 1)  # selection prob
 q = c(1) # no longer relevant because not using Phat
 #q = c(2.2, 1.2)
-boot.reps = c(0)
+boot.reps = c(0)  # not using bootstrap
 bt.meta.model = c("rma.uni")
 bt.type = c("wtd.vanilla")
 orig.meta.model = rev( c("robumeta.lazy") )
 true.dist = "exp"
 SE.corr = FALSE
-
+select.SE = c(TRUE, FALSE)
 
 # matrix of scenario parameters
 scen.params = expand.grid(k,
@@ -53,7 +53,8 @@ scen.params = expand.grid(k,
                           bt.meta.model,
                           bt.type,
                           true.dist,
-                          SE.corr )
+                          SE.corr,
+                          select.SE )
 
 names(scen.params) = c("k",
                        "per.cluster",
@@ -69,7 +70,8 @@ names(scen.params) = c("k",
                        "bt.meta.model",
                        "bt.type",
                        "true.dist", 
-                       "SE.corr" )
+                       "SE.corr",
+                       "select.SE" )
 
 
 # remove scenarios with V = 0 but V.gam > 0
@@ -131,7 +133,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "2:00:00",  # had used 1:00:00 for main results
+                            jobtime = "4:00:00",  # had used 1:00:00 for main results
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -152,7 +154,7 @@ n.files
 # 800 total
 path = "/home/groups/manishad/SAPB"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:400) {
+for (i in 1:n.files) {
   system( paste("sbatch -p owners /home/groups/manishad/SAPB/sbatch_files/", i, ".sbatch", sep="") )
   
   # max hourly submissions seems to be 300, which is 12 seconds/job

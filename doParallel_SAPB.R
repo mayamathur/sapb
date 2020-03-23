@@ -1,5 +1,5 @@
 
-
+# 
 # ######### FOR CLUSTER USE #########
 # 
 # # because Sherlock 2.0 restores previous workspace
@@ -52,8 +52,8 @@
 
 ######### FOR LOCAL USE #########
 
-rm(list=ls())
-
+# rm(list=ls())
+#
 # # REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
 # # note: total studies is k * per.cluster
 # k = c(20, 40, 80, 200)  # number of clusters prior to selection
@@ -72,26 +72,27 @@ rm(list=ls())
 # orig.meta.model = rev( c("robumeta.lazy") )
 # true.dist = "exp"
 # SE.corr = TRUE
+# select.SE = TRUE
 
 # REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
 # note: total studies is k * per.cluster
 k = c(20)  # number of clusters prior to selection
 per.cluster = c(5)  # studies per cluster
-mu = c(0.8)  # RE distribution mean
+mu = c(0.2)  # RE distribution mean
 V = c(1)  # RE heterogeneity
 V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
 sei.min = 1  # runif lower bound for study SEs
 sei.max = c(1.5)  # runif upper bound for study SEs
-eta = c(10)  # selection prob
+eta = c(1)  # selection prob
 q = c(2)
 #q = c(2.2, 1.2)
 boot.reps = c(0)
 bt.meta.model = c("rma.uni")
 bt.type = c("wtd.vanilla")
 orig.meta.model = rev( c("robumeta.lazy") )
-true.dist = "exp"
+true.dist = "exp" # ~~~ CHANGED
 SE.corr = FALSE
-select.SE = TRUE
+select.SE = FALSE
 
 
 # matrix of scenario parameters
@@ -221,6 +222,10 @@ rep.time = system.time({
       d = sim_data2(p)
       n.nonsig = sum(d$pval > 0.05 | d$yi < 0)
       SE.corr.emp = d$SE.corr.emp[1]
+      SE.mean.emp = d$SE.mean.emp[1]
+      
+      P.select.SE.emp = d$P.select.SE.emp[1]
+      P.publish.emp = d$P.publish.emp[1]
     }
 
     # dim(d)
@@ -633,6 +638,18 @@ rep.time = system.time({
                            SE.corr.emp = rep( d$SE.corr.emp[1], 
                                               2),
                            
+                           # empirical correlation between SE and true effects
+                           SE.mean.emp = rep( d$SE.mean.emp[1], 
+                                              2),
+                           
+                           # E[Fi]
+                           P.select.SE.emp = rep( d$P.select.SE.emp[1], 
+                                              2),
+                           
+                           # E[Di]
+                           P.publish.emp = rep( d$P.publish.emp[1], 
+                                              2),
+                  
                            # sanity check for normality of true effects
                            true.effect.shapiro.pval = rep( shapiro.test(d$mui)$p.value, 2 )
     )
@@ -663,15 +680,13 @@ mean(rs$MuCIWidth, na.rm=TRUE)
 
 
 # LOCAL ONLY
-
-
 my.vars = c("MuEst", "MuCover",
             "MuLo", "MuHi",
             "MuCIWidth",
             "T2Est", "T2Cover",
             "T2Lo", "T2Hi",
             "PEst", "PCover",
-            "k.obs", "n.nonsig", "SE.corr.emp" )
+            "k.obs", "n.nonsig", "SE.mean.emp" )
 
 # mean performance among non-NA reps
 options(scipen=999)
