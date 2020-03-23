@@ -274,9 +274,8 @@ sim_data_DEBUG = function(p) {
 }
 
 
-
-sim_data2 = function(p,
-                     keep.all.studies = FALSE) {
+# THIS IS FROM THE PREVIOUS SIMULATIONS!!! WORKS
+sim_data_old = function(p) {
   
   # # TEST ONLY
   # p = data.frame( k = 500,
@@ -302,15 +301,15 @@ sim_data2 = function(p,
   # these are called "gamma" in the paper
   # these are either normal or exponential
   if ( p$true.dist == "norm" ) gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
-    
-    if ( p$true.dist == "exp" ) {
-      true.effect.var = p$V - p$V.gam
-      # set var using properties of exponential
-      gam2i = rexp( n = p$k, rate = true.effect.var^(-1/2) )
-      # shift to have mean of 0
-      # use fact that var = mean^2 in exponential
-      gam2i = gam2i - true.effect.var^(1/2)
-    }
+  
+  if ( p$true.dist == "exp" ) {
+    true.effect.var = p$V - p$V.gam
+    # set var using properties of exponential
+    gam2i = rexp( n = p$k, rate = true.effect.var^(-1/2) )
+    # shift to have mean of 0
+    # use fact that var = mean^2 in exponential
+    gam2i = gam2i - true.effect.var^(1/2)
+  }
   
   
   # individual study SEs
@@ -332,11 +331,12 @@ sim_data2 = function(p,
   
   # individual study point estimates
   yi = rnorm( n = N, mean = mui, sd = sei )
-
-
+  
+  browser()
+  
+  
   d = data.frame( cluster = rep(1:p$k, each = p$per.cluster),
                   Study.name = 1:N,
-                  mui, 
                   yi = yi,
                   sei = sei,
                   vi = sei^2,
@@ -350,7 +350,94 @@ sim_data2 = function(p,
   
   d$weight = 1
   d$weight[ signif == 0 ] = p$eta
+  d = d[ publish == 1, ]
   
+  return(d)
+}
+
+
+# NEW VERSION
+sim_data2 = function(p,
+                     keep.all.studies = FALSE) {
+
+  # # TEST ONLY
+  # p = data.frame( k = 500,
+  #                 per.cluster = 1,
+  #                 mu = .5,
+  #                 V = 1,
+  #                 V.gam = 0,
+  #                 sei.min = 1,
+  #                 sei.max = 1.5,
+  #                 eta = 1,
+  #                 true.dist = "exp",
+  #                 SE.corr = TRUE )
+
+  N = p$k * p$per.cluster
+
+  # generate cluster random intercepts
+  # called "zeta" in paper
+  # these are normal even when true effect dist is exponential
+  gam1 = rnorm( n = p$k, mean = 0, sd = sqrt( p$V.gam ) )
+  gam1i = rep( gam1, each = p$per.cluster )
+
+  # generate individual-study random intrcepts
+  # these are called "gamma" in the paper
+  # these are either normal or exponential
+  if ( p$true.dist == "norm" ) gam2i = rnorm( n = N, mean = 0, sd = sqrt( p$V - p$V.gam ) )
+
+    if ( p$true.dist == "exp" ) {
+      true.effect.var = p$V - p$V.gam
+      # set var using properties of exponential
+      gam2i = rexp( n = p$k, rate = true.effect.var^(-1/2) )
+      # shift to have mean of 0
+      # use fact that var = mean^2 in exponential
+      gam2i = gam2i - true.effect.var^(1/2)
+    }
+
+
+  # individual study SEs
+  sei = runif( n = N, min = p$sei.min, max = p$sei.max )
+
+  # individual study means
+  if ( p$SE.corr == TRUE ) {
+    beta = 6
+    mui = p$mu + beta * sei + gam1i + gam2i
+
+    # recenter them to have desired mean of p$mu
+    # because E[sei}]
+    mui = mui - beta * mean(sei)
+
+    cor(sei, mui)
+  } else {
+    mui = p$mu + gam1i + gam2i
+  }
+
+  # individual study point estimates
+  yi = rnorm( n = N, mean = mui, sd = sei )
+
+  # NEW: make cluster variable
+  # this way, if we generate (say) 5 studies per "cluster", but V.gam = 0 in order
+  #  to effectively generate without clustering, the cluster variable we ultimately
+  #  pass to robumeta correctly reflects the lack of clustering
+  if ( p$V.gam == 0 ) cluster = 1:N else cluster = rep(1:p$k, each = p$per.cluster)
+  
+  d = data.frame( cluster = cluster,
+                  Study.name = 1:N,
+                  mui,
+                  yi = yi,
+                  sei = sei,
+                  vi = sei^2,
+                  pval = 2 * ( 1 - pnorm( abs(yi) / sei ) ),
+                  SE.corr.emp = cor(sei, mui) )  # empirical correlation
+
+  # 1-tailed publication bias
+  signif = d$pval < 0.05 & d$yi > 0
+  publish = rep( 1, nrow(d) )
+  publish[ signif == FALSE ] = rbinom( n = sum(signif == FALSE), size = 1, prob = 1/p$eta )
+
+  d$weight = 1
+  d$weight[ signif == 0 ] = p$eta
+
   # optionally, also select for small SE
   # Fi as defined in Supplement
   # tertiles of empirical SEs prior to selection
@@ -367,19 +454,19 @@ sim_data2 = function(p,
                  size = 1,
                  prob = P.Fi )
   }
-  
+
   if ( keep.all.studies == FALSE ) d = d[ publish == 1 & Fi == 1, ]
   if ( keep.all.studies == TRUE ){
     # just add the indicators
-    d$publish = publish 
+    d$publish = publish
     d$Fi = Fi
   }
-  
+
   # record the mean empirical SE (after publication bias) as sanity check on SE selection
   d$SE.mean.emp = mean(d$sei)
   d$P.select.SE.emp = mean(Fi)
   d$P.publish.emp = mean(publish)
-  
+
   return(d)
 }
 

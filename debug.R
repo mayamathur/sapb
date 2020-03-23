@@ -60,8 +60,8 @@
 
 # REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
 # note: total studies is k * per.cluster
-k = c(20*5)  # number of clusters prior to selection
-per.cluster = c(1)  # studies per cluster
+k = c(20)  # number of clusters prior to selection
+per.cluster = c(5)  # studies per cluster
 mu = c(0.2)  # RE distribution mean
 V = c(1)  # RE heterogeneity
 V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
@@ -75,7 +75,7 @@ boot.reps = c(0)
 bt.meta.model = c("rma.uni")
 bt.type = c("wtd.vanilla")
 orig.meta.model = rev( c("robumeta.lazy") )
-true.dist = "exp" # ~~~ CHANGED
+true.dist = "norm" # ~~~ CHANGED
 SE.corr = FALSE
 select.SE = FALSE
 
@@ -213,8 +213,8 @@ rep.time = system.time({
     #   P.publish.emp = d$P.publish.emp[1]
     # }
     
-    #d = sim_data2(p)
-    d = sim_data_DEBUG(p)
+    d = sim_data2(p)
+    #d = sim_data_DEBUG(p)
     
     # dim(d)
     # prop.table( table(d$weight) )
@@ -231,10 +231,10 @@ rep.time = system.time({
       
       meta.naive = robu( yi ~ 1,
                          data = d,
-                         #studynum = cluster,
+                         studynum = cluster,
                          
-                         studynum = 1:nrow(d),
-                         #userweights = 1 / (d$vi + t2.guess),
+                         #studynum = 1:nrow(d),
+                         userweights = 1 / (d$vi + t2.guess),
                          var.eff.size = vi,
                          small = TRUE )
       
@@ -314,6 +314,13 @@ rep.time = system.time({
 
 
 #}  # ends loop over scens
+
+
+sum(is.na(rs$MuCover))
+mean(rs$MuCover, na.rm = TRUE)
+
+
+
 
 
 nrow(rs)
