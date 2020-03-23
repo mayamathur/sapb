@@ -60,8 +60,8 @@
 
 # REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
 # note: total studies is k * per.cluster
-k = c(20)  # number of clusters prior to selection
-per.cluster = c(5)  # studies per cluster
+k = c(20*5)  # number of clusters prior to selection
+per.cluster = c(1)  # studies per cluster
 mu = c(0.2)  # RE distribution mean
 V = c(1)  # RE heterogeneity
 V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
@@ -355,6 +355,52 @@ agg$scen.name = scen
 
 # THIS ONE WORKS with regular call to robu (i.e., no userweights)! NOMINAL COVERAGE. ???
 # With t2.guess and userweights: still works
+# With sim_data2: still works! 
+
+
+# REMEMBER TO INCREASE BOOT REPS IF NEEDED! :)
+# note: total studies is k * per.cluster
+k = c(20*5)  # number of clusters prior to selection
+per.cluster = c(1)  # studies per cluster
+mu = c(0.2)  # RE distribution mean
+V = c(1)  # RE heterogeneity
+V.gam = c(0)  # variance of random intercepts (can't be > V because that's total heterogeneity!)
+sei.min = 1  # runif lower bound for study SEs
+sei.max = c(1.5)  # runif upper bound for study SEs
+eta = c(1)  # selection prob
+q = c(1)
+true.dist = "exp" 
+SE.corr = FALSE
+select.SE = FALSE
+
+
+# matrix of scenario parameters
+scen.params = expand.grid(k,
+                          per.cluster,
+                          mu,
+                          V,
+                          V.gam,
+                          sei.min,
+                          sei.max,
+                          eta,
+                          q,
+                          true.dist,
+                          SE.corr,
+                          select.SE )
+
+names(scen.params) = c("k",
+                       "per.cluster",
+                       "mu",
+                       "V",
+                       "V.gam",
+                       "sei.min",
+                       "sei.max",
+                       "eta",
+                       "q",
+                       "true.dist",
+                       "SE.corr",
+                       "select.SE")
+
 
 
 rm(rs)
